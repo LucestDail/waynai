@@ -11,6 +11,8 @@ LLM 기반 관광 코스 생성 백엔드 API 서비스입니다.
 - **관광 코스 생성**: 목적지, 일정, 테마 등을 기반으로 맞춤형 관광 코스 생성
 - **관광지 정보 관리**: 관광지 정보 조회, 검색, 필터링
 - **LLM 통합**: Google Gemini API를 활용한 지능형 코스 생성 및 여행 팁 생성
+- **RAG 시스템**: 한국관광공사 API를 활용한 최신 관광지 정보 기반 코스 생성
+- **연관 관광지 정보**: 지역 및 키워드 기반 연관 관광지 정보 제공
 - **RESTful API**: 표준화된 REST API 제공
 
 ## 기술 스택
@@ -28,18 +30,23 @@ LLM 기반 관광 코스 생성 백엔드 API 서비스입니다.
 src/main/java/com/tripamigo/demo/
 ├── controller/          # REST 컨트롤러
 │   ├── TourCourseController.java
-│   └── TouristSpotController.java
+│   ├── TouristSpotController.java
+│   └── TouristInfoController.java
 ├── service/            # 비즈니스 로직
 │   ├── TourCourseService.java
 │   ├── TouristSpotService.java
-│   └── LLMService.java
+│   ├── LLMService.java
+│   └── TouristInfoService.java
 ├── dto/               # 데이터 전송 객체
 │   ├── TourCourseRequestDto.java
 │   ├── TourCourseResponseDto.java
 │   ├── TouristSpotDto.java
 │   ├── DayPlanDto.java
 │   ├── SpotVisitDto.java
-│   └── ApiResponseDto.java
+│   ├── ApiResponseDto.java
+│   └── tourist/       # 관광지 API DTO
+│       ├── TouristApiRequestDto.java
+│       └── TouristApiResponseDto.java
 ├── interceptor/       # 인터셉터
 │   ├── LoggingInterceptor.java
 │   └── AuthInterceptor.java
@@ -52,7 +59,9 @@ src/main/java/com/tripamigo/demo/
 │   ├── ValidationUtil.java
 │   └── DateUtil.java
 └── client/          # HTTP 클라이언트
-    └── HttpClientService.java
+    ├── HttpClientService.java
+    ├── GeminiApiClient.java
+    └── TouristApiClient.java
 ```
 
 ## API 엔드포인트
@@ -72,6 +81,14 @@ src/main/java/com/tripamigo/demo/
 - `GET /api/v1/tourist-spots/search?keyword={keyword}` - 관광지 검색
 - `GET /api/v1/tourist-spots/destination/{destination}/theme/{theme}` - 목적지/테마별 관광지 조회
 - `GET /api/v1/tourist-spots/health` - 헬스 체크
+
+### 관광지 정보 API (한국관광공사 연동)
+
+- `GET /api/tourist-info/area-based` - 지역기반 연관 관광지 정보 조회
+- `GET /api/tourist-info/keyword-based` - 키워드 기반 연관 관광지 정보 조회
+- `GET /api/tourist-info/rag-context` - RAG를 위한 관광지 정보 컨텍스트 조회
+- `GET /api/tourist-info/area-rag-context` - 지역 기반 관광지 정보 컨텍스트 조회
+- `GET /api/tourist-info/category-based` - 카테고리별 관광지 정보 조회
 
 ## 실행 방법
 
@@ -142,6 +159,22 @@ curl -X POST http://localhost:8080/api/v1/tour-courses/travel-tips \
   }'
 ```
 
+### 관광지 정보 조회 (한국관광공사 API)
+
+```bash
+# 지역기반 연관 관광지 정보 조회
+curl -X GET "http://localhost:8080/api/tourist-info/area-based?areaCd=11&signguCd=11680&pageNo=1&numOfRows=10" \
+  -H "Authorization: Bearer valid-token"
+
+# 키워드 기반 연관 관광지 정보 조회
+curl -X GET "http://localhost:8080/api/tourist-info/keyword-based?keyword=경복궁&areaCd=11&signguCd=11680&pageNo=1&numOfRows=10" \
+  -H "Authorization: Bearer valid-token"
+
+# RAG 컨텍스트 조회
+curl -X GET "http://localhost:8080/api/tourist-info/rag-context?keyword=문화&areaCd=11&signguCd=11680" \
+  -H "Authorization: Bearer valid-token"
+```
+
 ## 설정
 
 ### application.properties 주요 설정
@@ -169,6 +202,8 @@ curl -X POST http://localhost:8080/api/v1/tour-courses/travel-tips \
 ## 향후 개선 사항
 
 - [x] **LLM API 연동 (Google Gemini)** ✅
+- [x] **RAG 시스템 구축 (한국관광공사 API)** ✅
+- [x] **연관 관광지 정보 API** ✅
 - [ ] 데이터베이스 연동 (JPA/Hibernate)
 - [ ] 사용자 인증/인가 시스템 (JWT)
 - [ ] 캐싱 시스템 (Redis)
@@ -178,6 +213,8 @@ curl -X POST http://localhost:8080/api/v1/tour-courses/travel-tips \
 - [ ] CI/CD 파이프라인 구축
 - [ ] LLM 응답 JSON 파싱 개선
 - [ ] 에러 처리 및 재시도 로직 강화
+- [ ] 지역 코드 매핑 시스템 개선
+- [ ] 관광지 정보 캐싱 및 업데이트 자동화
 
 ## 라이선스
 

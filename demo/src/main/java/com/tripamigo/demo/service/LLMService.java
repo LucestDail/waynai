@@ -22,14 +22,18 @@ import java.util.List;
 public class LLMService {
     
     private final GeminiApiClient geminiApiClient;
+    private final TouristInfoService touristInfoService;
     private final ObjectMapper objectMapper;
     
     public TourCourseResponseDto generateCourse(TourCourseRequestDto request, List<TouristSpotDto> availableSpots, String courseId) {
         log.info("Generating course using LLM for course ID: {}", courseId);
         
         try {
+            // RAG를 위한 관광지 정보 컨텍스트 생성
+            String touristContext = buildTouristContext(request);
+            
             // Gemini API를 사용하여 코스 생성
-            String prompt = createCourseGenerationPrompt(request, availableSpots);
+            String prompt = createCourseGenerationPromptWithRAG(request, availableSpots, touristContext);
             String llmResponse = geminiApiClient.generateContent(prompt)
                     .map(geminiApiClient::extractTextFromResponse)
                     .block();
@@ -51,6 +55,92 @@ public class LLMService {
             // LLM API 실패 시 샘플 데이터 사용
             return createSampleCourseResponse(request, availableSpots, courseId);
         }
+    }
+    
+    /**
+     * RAG를 위한 관광지 정보 컨텍스트 생성
+     */
+    private String buildTouristContext(TourCourseRequestDto request) {
+        try {
+            // 지역 코드 매핑 (실제로는 더 정교한 매핑이 필요)
+            String areaCd = getAreaCode(request.getDestination());
+            String signguCd = getSignguCode(request.getDestination());
+            
+            if (areaCd != null && signguCd != null) {
+                // 키워드 기반 검색
+                String keywordContext = touristInfoService.buildTouristContextForRAG(
+                        request.getTheme(), areaCd, signguCd).block();
+                
+                // 지역 기반 검색
+                String areaContext = touristInfoService.buildAreaBasedContextForRAG(
+                        areaCd, signguCd).block();
+                
+                return keywordContext + "\n\n" + areaContext;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to build tourist context: {}", e.getMessage());
+        }
+        
+        return "관광지 정보를 찾을 수 없습니다.";
+    }
+    
+    /**
+     * 지역 코드 매핑 (간단한 예시)
+     */
+    private String getAreaCode(String destination) {
+        if (destination.contains("서울")) return "11";
+        if (destination.contains("부산")) return "21";
+        if (destination.contains("대구")) return "22";
+        if (destination.contains("인천")) return "23";
+        if (destination.contains("광주")) return "24";
+        if (destination.contains("대전")) return "25";
+        if (destination.contains("울산")) return "26";
+        if (destination.contains("세종")) return "29";
+        if (destination.contains("경기")) return "31";
+        if (destination.contains("강원")) return "32";
+        if (destination.contains("충북")) return "33";
+        if (destination.contains("충남")) return "34";
+        if (destination.contains("전북")) return "35";
+        if (destination.contains("전남")) return "36";
+        if (destination.contains("경북")) return "37";
+        if (destination.contains("경남")) return "38";
+        if (destination.contains("제주")) return "39";
+        return null;
+    }
+    
+    /**
+     * 시군구 코드 매핑 (간단한 예시)
+     */
+    private String getSignguCode(String destination) {
+        // 실제로는 더 정교한 매핑이 필요
+        if (destination.contains("강남")) return "11680";
+        if (destination.contains("서초")) return "11620";
+        if (destination.contains("종로")) return "11110";
+        if (destination.contains("중구")) return "11140";
+        if (destination.contains("용산")) return "11170";
+        if (destination.contains("성동")) return "11200";
+        if (destination.contains("광진")) return "11215";
+        if (destination.contains("동대문")) return "11230";
+        if (destination.contains("중랑")) return "11260";
+        if (destination.contains("성북")) return "11290";
+        if (destination.contains("강북")) return "11305";
+        if (destination.contains("도봉")) return "11320";
+        if (destination.contains("노원")) return "11350";
+        if (destination.contains("은평")) return "11380";
+        if (destination.contains("서대문")) return "11410";
+        if (destination.contains("마포")) return "11440";
+        if (destination.contains("양천")) return "11470";
+        if (destination.contains("강서")) return "11500";
+        if (destination.contains("구로")) return "11530";
+        if (destination.contains("금천")) return "11545";
+        if (destination.contains("영등포")) return "11560";
+        if (destination.contains("동작")) return "11590";
+        if (destination.contains("관악")) return "11620";
+        if (destination.contains("서초")) return "11650";
+        if (destination.contains("강남")) return "11680";
+        if (destination.contains("송파")) return "11710";
+        if (destination.contains("강동")) return "11740";
+        return null;
     }
     
     private TourCourseResponseDto createSampleCourseResponse(TourCourseRequestDto request, List<TouristSpotDto> spots, String courseId) {
@@ -185,8 +275,18 @@ public class LLMService {
     }
     
     private String createCourseGenerationPrompt(TourCourseRequestDto request, List<TouristSpotDto> availableSpots) {
+        return createCourseGenerationPromptWithRAG(request, availableSpots, "");
+    }
+    
+    private String createCourseGenerationPromptWithRAG(TourCourseRequestDto request, List<TouristSpotDto> availableSpots, String touristContext) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("당신은 전문 여행 코스 설계사입니다. 다음 정보를 바탕으로 상세한 관광 코스를 생성해주세요.\n\n");
+        
+        // RAG 컨텍스트 추가
+        if (touristContext != null && !touristContext.trim().isEmpty()) {
+            prompt.append("=== 최신 관광지 정보 (RAG 기반) ===\n");
+            prompt.append(touristContext).append("\n\n");
+        }
         
         prompt.append("여행 정보:\n");
         prompt.append("- 목적지: ").append(request.getDestination()).append("\n");
@@ -204,11 +304,13 @@ public class LLMService {
         }
         
         prompt.append("\n요구사항:\n");
-        prompt.append("1. 각 일차별로 2-3개 관광지를 배정하세요.\n");
-        prompt.append("2. 관광지 간 이동 시간을 고려하세요.\n");
-        prompt.append("3. 식사 시간과 휴식 시간을 포함하세요.\n");
-        prompt.append("4. 예산과 교통수단을 고려하세요.\n");
-        prompt.append("5. JSON 형식으로 응답하되, 다음 구조를 따르세요:\n");
+        prompt.append("1. 위의 최신 관광지 정보를 우선적으로 참고하여 코스를 설계하세요.\n");
+        prompt.append("2. 연관 관광지 정보를 활용하여 효율적인 코스를 구성하세요.\n");
+        prompt.append("3. 각 일차별로 2-3개 관광지를 배정하세요.\n");
+        prompt.append("4. 관광지 간 이동 시간을 고려하세요.\n");
+        prompt.append("5. 식사 시간과 휴식 시간을 포함하세요.\n");
+        prompt.append("6. 예산과 교통수단을 고려하세요.\n");
+        prompt.append("7. JSON 형식으로 응답하되, 다음 구조를 따르세요:\n");
         prompt.append("{\n");
         prompt.append("  \"title\": \"코스 제목\",\n");
         prompt.append("  \"summary\": \"코스 요약\",\n");
