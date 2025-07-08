@@ -1,0 +1,279 @@
+/* WaynAI Design System - Base CSS */
+
+/* CSS Custom Properties for WaynAI Brand Colors */
+:root {
+  /* Primary Colors */
+  --waynai-primary: #1e3c72;
+  --waynai-primary-light: #2a5298;
+  --waynai-primary-dark: #152a4f;
+  
+  /* Secondary Colors */
+  --waynai-secondary: #667eea;
+  --waynai-secondary-light: #764ba2;
+  --waynai-secondary-dark: #5a67d8;
+  
+  /* Accent Colors */
+  --waynai-accent: #10b981;
+  --waynai-accent-light: #34d399;
+  --waynai-accent-dark: #059669;
+  
+  /* Neutral Colors */
+  --waynai-white: #ffffff;
+  --waynai-gray-50: #f8fafc;
+  --waynai-gray-100: #f1f5f9;
+  --waynai-gray-200: #e2e8f0;
+  --waynai-gray-300: #cbd5e1;
+  --waynai-gray-400: #94a3b8;
+  --waynai-gray-500: #64748b;
+  --waynai-gray-600: #475569;
+  --waynai-gray-700: #334155;
+  --waynai-gray-800: #1e293b;
+  --waynai-gray-900: #0f172a;
+  
+  /* Semantic Colors */
+  --waynai-success: #10b981;
+  --waynai-warning: #f59e0b;
+  --waynai-error: #ef4444;
+  --waynai-info: #3b82f6;
+  
+  /* Background Colors */
+  --waynai-bg-primary: var(--waynai-white);
+  --waynai-bg-secondary: var(--waynai-gray-50);
+  --waynai-bg-tertiary: var(--waynai-gray-100);
+  
+  /* Text Colors */
+  --waynai-text-primary: var(--waynai-gray-800);
+  --waynai-text-secondary: var(--waynai-gray-600);
+  --waynai-text-tertiary: var(--waynai-gray-500);
+  --waynai-text-inverse: var(--waynai-white);
+  
+  /* Border Colors */
+  --waynai-border-light: var(--waynai-gray-200);
+  --waynai-border-medium: var(--waynai-gray-300);
+  --waynai-border-dark: var(--waynai-gray-400);
+  
+  /* Shadow Colors */
+  --waynai-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --waynai-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --waynai-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --waynai-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Spacing */
+  --waynai-space-xs: 0.25rem;
+  --waynai-space-sm: 0.5rem;
+  --waynai-space-md: 1rem;
+  --waynai-space-lg: 1.5rem;
+  --waynai-space-xl: 2rem;
+  --waynai-space-2xl: 3rem;
+  --waynai-space-3xl: 4rem;
+  
+  /* Border Radius */
+  --waynai-radius-sm: 0.25rem;
+  --waynai-radius-md: 0.5rem;
+  --waynai-radius-lg: 0.75rem;
+  --waynai-radius-xl: 1rem;
+  --waynai-radius-2xl: 1.5rem;
+  --waynai-radius-full: 9999px;
+  
+  /* Typography */
+  --waynai-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --waynai-font-size-xs: 0.75rem;
+  --waynai-font-size-sm: 0.875rem;
+  --waynai-font-size-base: 1rem;
+  --waynai-font-size-lg: 1.125rem;
+  --waynai-font-size-xl: 1.25rem;
+  --waynai-font-size-2xl: 1.5rem;
+  --waynai-font-size-3xl: 1.875rem;
+  --waynai-font-size-4xl: 2.25rem;
+  --waynai-font-size-5xl: 3rem;
+  
+  /* Line Heights */
+  --waynai-leading-none: 1;
+  --waynai-leading-tight: 1.25;
+  --waynai-leading-snug: 1.375;
+  --waynai-leading-normal: 1.5;
+  --waynai-leading-relaxed: 1.625;
+  --waynai-leading-loose: 2;
+  
+  /* Font Weights */
+  --waynai-font-light: 300;
+  --waynai-font-normal: 400;
+  --waynai-font-medium: 500;
+  --waynai-font-semibold: 600;
+  --waynai-font-bold: 700;
+  --waynai-font-extrabold: 800;
+  
+  /* Transitions */
+  --waynai-transition-fast: 150ms ease;
+  --waynai-transition-normal: 300ms ease;
+  --waynai-transition-slow: 500ms ease;
+  
+  /* Z-Index */
+  --waynai-z-dropdown: 1000;
+  --waynai-z-sticky: 1020;
+  --waynai-z-fixed: 1030;
+  --waynai-z-modal-backdrop: 1040;
+  --waynai-z-modal: 1050;
+  --waynai-z-popover: 1060;
+  --waynai-z-tooltip: 1070;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --waynai-bg-primary: var(--waynai-gray-900);
+    --waynai-bg-secondary: var(--waynai-gray-800);
+    --waynai-bg-tertiary: var(--waynai-gray-700);
+    
+    --waynai-text-primary: var(--waynai-gray-100);
+    --waynai-text-secondary: var(--waynai-gray-300);
+    --waynai-text-tertiary: var(--waynai-gray-400);
+    
+    --waynai-border-light: var(--waynai-gray-700);
+    --waynai-border-medium: var(--waynai-gray-600);
+    --waynai-border-dark: var(--waynai-gray-500);
+  }
+}
+
+/* Reset and Base Styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--waynai-font-family);
+  font-size: var(--waynai-font-size-base);
+  line-height: var(--waynai-leading-normal);
+  color: var(--waynai-text-primary);
+  background-color: var(--waynai-bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--waynai-font-semibold);
+  line-height: var(--waynai-leading-tight);
+  color: var(--waynai-text-primary);
+  margin-bottom: var(--waynai-space-md);
+}
+
+h1 {
+  font-size: var(--waynai-font-size-5xl);
+}
+
+h2 {
+  font-size: var(--waynai-font-size-4xl);
+}
+
+h3 {
+  font-size: var(--waynai-font-size-3xl);
+}
+
+h4 {
+  font-size: var(--waynai-font-size-2xl);
+}
+
+h5 {
+  font-size: var(--waynai-font-size-xl);
+}
+
+h6 {
+  font-size: var(--waynai-font-size-lg);
+}
+
+p {
+  margin-bottom: var(--waynai-space-md);
+  color: var(--waynai-text-secondary);
+}
+
+/* Links */
+a {
+  color: var(--waynai-primary);
+  text-decoration: none;
+  transition: color var(--waynai-transition-fast);
+}
+
+a:hover {
+  color: var(--waynai-primary-light);
+}
+
+/* Lists */
+ul, ol {
+  margin-bottom: var(--waynai-space-md);
+  padding-left: var(--waynai-space-xl);
+}
+
+li {
+  margin-bottom: var(--waynai-space-xs);
+  color: var(--waynai-text-secondary);
+}
+
+/* Images */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Buttons */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Form Elements */
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: var(--waynai-text-primary);
+  background-color: var(--waynai-bg-primary);
+  border: 1px solid var(--waynai-border-medium);
+  border-radius: var(--waynai-radius-md);
+  padding: var(--waynai-space-sm) var(--waynai-space-md);
+  transition: all var(--waynai-transition-fast);
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--waynai-primary);
+  box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
+}
+
+/* Utility Classes */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--waynai-primary);
+  outline-offset: 2px;
+}
