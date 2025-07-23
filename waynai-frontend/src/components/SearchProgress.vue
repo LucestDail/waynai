@@ -1,60 +1,66 @@
 <template>
-  <div v-if="state.isSearching || state.progress.length > 0" class="progress-container">
+  <div v-if="state.isSearching" class="progress-container">
     <div class="progress-header">
-      <h3 class="progress-title">검색 진행 상황</h3>
-      <div class="status-indicator" :class="statusClass">
-        {{ getStatusText(state.currentStatus) }}
-      </div>
+      <h3 class="progress-title">AI 여행 코스 생성 중</h3>
+      <div class="progress-status">{{ getStatusText() }}</div>
     </div>
 
-    <div class="progress-steps">
-      <div
-        v-for="(step, index) in progressSteps"
-        :key="step.key"
-        class="progress-step"
-        :class="getStepClass(step.key)"
-      >
-        <div class="step-icon">
-          <div v-if="isStepCompleted(step.key)" class="step-completed">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <div class="progress-content">
+      <!-- 현재 단계 표시 -->
+      <div class="current-step">
+        <div class="step-indicator">
+          <div class="step-dot active"></div>
+          <div class="step-line" :class="{ active: isStepActive('intent_analysis') }"></div>
+          <div class="step-dot" :class="{ active: isStepActive('intent_analysis') }"></div>
+          <div class="step-line" :class="{ active: isStepActive('knowledge_search') }"></div>
+          <div class="step-dot" :class="{ active: isStepActive('knowledge_search') }"></div>
+          <div class="step-line" :class="{ active: isStepActive('course_generation') }"></div>
+          <div class="step-dot" :class="{ active: isStepActive('course_generation') }"></div>
+        </div>
+        
+        <div class="step-labels">
+          <span class="step-label" :class="{ active: isStepActive('intent_analysis') }">입력 분석</span>
+          <span class="step-label" :class="{ active: isStepActive('knowledge_search') }">정보 검색</span>
+          <span class="step-label" :class="{ active: isStepActive('course_generation') }">AI 생성</span>
+        </div>
+      </div>
+
+      <!-- 진행 상황 메시지 -->
+      <div class="progress-messages">
+        <div v-for="(message, index) in state.progress" :key="index" class="progress-message">
+          <div class="message-icon">
+            <svg v-if="isCompletedMessage(message)" width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
             </svg>
+            <div v-else class="loading-dot"></div>
           </div>
-          <div v-else-if="isStepActive(step.key)" class="step-active">
-            <div class="step-spinner"></div>
-          </div>
-          <div v-else class="step-pending">
-            {{ index + 1 }}
-          </div>
+          <span class="message-text">{{ message }}</span>
         </div>
-        <div class="step-content">
-          <div class="step-title">{{ step.title }}</div>
-          <div class="step-description">{{ step.description }}</div>
+      </div>
+
+      <!-- 현재 진행 중인 작업 표시 -->
+      <div v-if="state.currentStep && !isCompleted" class="current-task">
+        <div class="task-indicator">
+          <div class="loading-spinner"></div>
+          <span class="task-text">{{ getCurrentTaskText() }}</span>
         </div>
+      </div>
+
+      <!-- 디버그 정보 (개발 모드에서만 표시) -->
+      <div v-if="showDebugInfo" class="debug-info">
+        <details>
+          <summary>디버그 정보</summary>
+          <pre>{{ debugInfo }}</pre>
+        </details>
       </div>
     </div>
 
-    <div v-if="state.progress.length > 0" class="progress-log">
-      <h4 class="log-title">진행 로그</h4>
-      <div class="log-container">
-        <div
-          v-for="(log, index) in state.progress"
-          :key="index"
-          class="log-item"
-        >
-          <span class="log-time">{{ formatTime(new Date()) }}</span>
-          <span class="log-message">{{ log }}</span>
-        </div>
+    <!-- 진행률 표시 -->
+    <div class="progress-bar-container">
+      <div class="progress-bar">
+        <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
       </div>
-    </div>
-
-    <div v-if="state.error" class="error-message">
-      <div class="error-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
-        </svg>
-      </div>
-      <div class="error-text">{{ state.error }}</div>
+      <div class="progress-text">{{ Math.round(progressPercentage) }}% 완료</div>
     </div>
   </div>
 </template>
@@ -66,96 +72,81 @@ import { useSearchStore } from '@/stores/search';
 const searchStore = useSearchStore();
 const { state } = searchStore;
 
-const progressSteps = [
-  {
-    key: 'intent_analysis',
-    title: '의도 분석',
-    description: '사용자 입력을 분석하여 검색 의도를 파악합니다.'
-  },
-  {
-    key: 'query_enhancement',
-    title: '질의 강화',
-    description: '원본 질의를 더 구체적이고 정확한 검색어로 강화합니다.'
-  },
-  {
-    key: 'knowledge_search',
-    title: '지식 검색',
-    description: '관광지 정보를 검색하여 관련 데이터를 수집합니다.'
-  },
-  {
-    key: 'course_generation',
-    title: '결과 생성',
-    description: '수집된 정보를 바탕으로 여행 계획을 생성합니다.'
-  }
-];
-
-const statusClass = computed(() => {
-  switch (state.currentStatus) {
-    case 'analyzing':
-      return 'status-analyzing';
-    case 'enhancing':
-      return 'status-enhancing';
-    case 'searching':
-      return 'status-searching';
-    case 'generating':
-      return 'status-generating';
-    case 'completed':
-      return 'status-completed';
-    case 'error':
-      return 'status-error';
-    default:
-      return '';
-  }
+const isCompleted = computed(() => {
+  return state.currentStatus === 'completed';
 });
 
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'analyzing':
-      return '의도 분석 중';
-    case 'enhancing':
-      return '질의 강화 중';
-    case 'searching':
-      return '지식 검색 중';
-    case 'generating':
-      return '결과 생성 중';
-    case 'completed':
-      return '완료';
-    case 'error':
-      return '오류 발생';
-    default:
-      return '대기 중';
+const progressPercentage = computed(() => {
+  if (isCompleted.value) return 100;
+  
+  const stepProgress: Record<string, number> = {
+    'intent_analysis': 0,
+    'knowledge_search': 33,
+    'course_generation': 66
+  };
+  
+  const currentStep = state.currentStep;
+  if (currentStep && stepProgress[currentStep] !== undefined) {
+    return stepProgress[currentStep];
   }
+  
+  return 0;
+});
+
+const isStepActive = (step: string) => {
+  const stepOrder = ['intent_analysis', 'knowledge_search', 'course_generation'];
+  const currentStepIndex = stepOrder.indexOf(state.currentStep);
+  const stepIndex = stepOrder.indexOf(step);
+  
+  return stepIndex <= currentStepIndex;
 };
 
-const getStepClass = (stepKey: string) => {
-  if (isStepCompleted(stepKey)) return 'step-completed';
-  if (isStepActive(stepKey)) return 'step-active';
-  return 'step-pending';
+const isCompletedMessage = (message: string) => {
+  return message.includes('완료') || message.includes('완료:');
 };
 
-const isStepCompleted = (stepKey: string) => {
-  const stepOrder = ['intent_analysis', 'query_enhancement', 'knowledge_search', 'course_generation'];
-  const currentIndex = stepOrder.indexOf(state.currentStep);
-  const stepIndex = stepOrder.indexOf(stepKey);
-  return stepIndex < currentIndex || state.currentStatus === 'completed';
+const getCurrentTaskText = () => {
+  const taskTexts: Record<string, string> = {
+    'intent_analysis': '사용자 입력을 분석하고 질의를 강화하는 중...',
+    'knowledge_search': '관광지 정보를 검색하고 수집하는 중...',
+    'course_generation': 'AI가 여행 정보를 생성하는 중...'
+  };
+  
+  return taskTexts[state.currentStep] || '처리 중...';
 };
 
-const isStepActive = (stepKey: string) => {
-  return state.currentStep === stepKey && state.currentStatus !== 'completed';
+const getStatusText = () => {
+  const statusTexts: Record<string, string> = {
+    'analyzing': '입력 분석 중',
+    'searching': '정보 검색 중',
+    'generating': 'AI 생성 중',
+    'completed': '완료',
+    'error': '오류 발생'
+  };
+  
+  return statusTexts[state.currentStatus] || state.currentStatus || '대기 중';
 };
 
-const formatTime = (date: Date) => {
-  return date.toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-};
+// 디버그 정보 (개발 모드에서만 표시)
+const showDebugInfo = computed(() => {
+  return import.meta.env.DEV;
+});
+
+const debugInfo = computed(() => {
+  return JSON.stringify({
+    isSearching: state.isSearching,
+    currentStatus: state.currentStatus,
+    currentStep: state.currentStep,
+    progress: state.progress,
+    hasResult: !!state.result,
+    hasError: !!state.error
+  }, null, 2);
+});
 </script>
 
 <style scoped>
 .progress-container {
-  max-width: 800px;
+  max-width: 600px;
   margin: 2rem auto;
   padding: 2rem;
   background: white;
@@ -164,216 +155,251 @@ const formatTime = (date: Date) => {
 }
 
 .progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  text-align: center;
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #f1f3f4;
 }
 
 .progress-title {
   font-size: 1.5rem;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
 }
 
-.status-indicator {
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: white;
+.progress-status {
+  font-size: 1rem;
+  color: #3498db;
+  font-weight: 500;
 }
 
-.status-analyzing {
-  background-color: #3498db;
-}
-
-.status-enhancing {
-  background-color: #9b59b6;
-}
-
-.status-searching {
-  background-color: #f39c12;
-}
-
-.status-generating {
-  background-color: #e67e22;
-}
-
-.status-completed {
-  background-color: #27ae60;
-}
-
-.status-error {
-  background-color: #e74c3c;
-}
-
-.progress-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.progress-content {
   margin-bottom: 2rem;
 }
 
-.progress-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+/* 단계 표시 */
+.current-step {
+  margin-bottom: 2rem;
 }
 
-.step-completed {
-  background-color: #f8f9fa;
-  border-left: 4px solid #27ae60;
-}
-
-.step-active {
-  background-color: #e3f2fd;
-  border-left: 4px solid #3498db;
-}
-
-.step-pending {
-  background-color: #f8f9fa;
-  border-left: 4px solid #bdc3c7;
-}
-
-.step-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+.step-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  flex-shrink: 0;
+  margin-bottom: 1rem;
 }
 
-.step-completed .step-icon {
-  background-color: #27ae60;
-  color: white;
+.step-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #e1e8ed;
+  transition: all 0.3s ease;
 }
 
-.step-active .step-icon {
+.step-dot.active {
   background-color: #3498db;
-  color: white;
+  transform: scale(1.2);
 }
 
-.step-pending .step-icon {
-  background-color: #bdc3c7;
+.step-line {
+  width: 60px;
+  height: 2px;
+  background-color: #e1e8ed;
+  margin: 0 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.step-line.active {
+  background-color: #3498db;
+}
+
+.step-labels {
+  display: flex;
+  justify-content: space-between;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.step-label {
+  font-size: 0.9rem;
   color: #7f8c8d;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
-.step-spinner {
+.step-label.active {
+  color: #3498db;
+  font-weight: 600;
+}
+
+/* 진행 메시지 */
+.progress-messages {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
+}
+
+.progress-message {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  animation: fadeInUp 0.3s ease;
+}
+
+.message-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
-  border: 2px solid transparent;
-  border-top: 2px solid white;
+  color: #27ae60;
+}
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3498db;
+  animation: pulse 1.5s infinite;
+}
+
+.message-text {
+  font-size: 0.95rem;
+  color: #34495e;
+  line-height: 1.4;
+}
+
+/* 현재 작업 표시 */
+.current-task {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+}
+
+.task-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e1e8ed;
+  border-top: 2px solid #3498db;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.step-content {
-  flex: 1;
-}
-
-.step-title {
-  font-weight: 600;
+.task-text {
+  font-size: 1rem;
   color: #2c3e50;
-  margin-bottom: 0.25rem;
-}
-
-.step-description {
-  color: #7f8c8d;
-  font-size: 0.9rem;
-}
-
-.progress-log {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 2px solid #f1f3f4;
-}
-
-.log-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
-.log-container {
-  max-height: 200px;
-  overflow-y: auto;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-.log-item {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.log-time {
-  color: #7f8c8d;
-  font-weight: 600;
-  min-width: 80px;
-}
-
-.log-message {
-  color: #2c3e50;
-}
-
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-  padding: 1rem;
-  background-color: #fdf2f2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  color: #dc2626;
-}
-
-.error-icon {
-  flex-shrink: 0;
-}
-
-.error-text {
   font-weight: 500;
 }
 
+/* 디버그 정보 */
+.debug-info {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e1e8ed;
+}
+
+.debug-info summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #3498db;
+  margin-bottom: 0.5rem;
+}
+
+.debug-info pre {
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #2c3e50;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 진행률 바 */
+.progress-bar-container {
+  margin-top: 1.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e1e8ed;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, #2980b9);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+/* 애니메이션 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 반응형 */
 @media (max-width: 768px) {
   .progress-container {
     margin: 1rem;
     padding: 1rem;
   }
 
-  .progress-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
+  .step-line {
+    width: 40px;
   }
 
-  .progress-step {
-    flex-direction: column;
-    align-items: flex-start;
+  .step-labels {
+    max-width: 250px;
   }
 
-  .step-icon {
-    align-self: flex-start;
+  .step-label {
+    font-size: 0.8rem;
   }
 }
 </style> 

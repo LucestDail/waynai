@@ -140,6 +140,9 @@
   </div>
 </template>
 
+<script setup lang="ts">
+</script>
+
 <style scoped>
 .about {
   min-height: 100vh;
@@ -147,7 +150,7 @@
 
 .hero-section {
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  padding: 6rem 2rem;
+  padding: 6rem 2rem 4rem;
   text-align: center;
   color: white;
 }
@@ -171,6 +174,12 @@
 .content-section {
   padding: 4rem 2rem;
   background: #f8fafc;
+  transition: background 0.3s ease;
+}
+
+/* 다크모드에서 콘텐츠 섹션 */
+.dark .content-section {
+  background: #0f172a;
 }
 
 .container {
@@ -199,18 +208,35 @@
   padding: 3rem;
   border-radius: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: background 0.3s ease;
+}
+
+/* 다크모드에서 스토리 콘텐츠 */
+.dark .story-content {
+  background: #1e293b;
 }
 
 .story-text h3 {
   font-size: 1.5rem;
   color: #1e3c72;
   margin-bottom: 1rem;
+  transition: color 0.3s ease;
 }
 
 .story-text p {
   color: #6b7280;
   line-height: 1.6;
   margin-bottom: 1rem;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 스토리 텍스트 */
+.dark .story-text h3 {
+  color: #f8fafc;
+}
+
+.dark .story-text p {
+  color: #cbd5e1;
 }
 
 .story-text ul {
@@ -242,6 +268,12 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
+  transition: background 0.3s ease;
+}
+
+/* 다크모드에서 로고 아이콘 */
+.dark .logo-icon {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
 }
 
 .logo-icon svg {
@@ -253,6 +285,12 @@
   font-weight: 700;
   color: #1e3c72;
   margin: 0;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 브랜드 로고 */
+.dark .brand-logo h3 {
+  color: #f8fafc;
 }
 
 .concept-section {
@@ -267,6 +305,12 @@
   display: flex;
   align-items: center;
   gap: 2rem;
+  transition: background 0.3s ease;
+}
+
+/* 다크모드에서 컨셉 카드 */
+.dark .concept-card {
+  background: #1e293b;
 }
 
 .concept-icon {
@@ -278,12 +322,23 @@
   font-size: 1.5rem;
   color: #1e3c72;
   margin-bottom: 1rem;
+  transition: color 0.3s ease;
 }
 
 .concept-content p {
   color: #6b7280;
   line-height: 1.6;
   margin: 0;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 컨셉 콘텐츠 */
+.dark .concept-content h3 {
+  color: #f8fafc;
+}
+
+.dark .concept-content p {
+  color: #cbd5e1;
 }
 
 .features-section {
@@ -302,7 +357,12 @@
   border-radius: 16px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   text-align: center;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+/* 다크모드에서 기능 아이템 */
+.dark .feature-item {
+  background: #1e293b;
 }
 
 .feature-item:hover {
@@ -318,12 +378,23 @@
   font-size: 1.25rem;
   color: #1e3c72;
   margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
 }
 
 .feature-item p {
   color: #6b7280;
   line-height: 1.5;
   margin: 0;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 기능 아이템 텍스트 */
+.dark .feature-item h4 {
+  color: #f8fafc;
+}
+
+.dark .feature-item p {
+  color: #cbd5e1;
 }
 
 .target-section {
@@ -342,7 +413,7 @@
   border-radius: 16px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   text-align: center;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, background 0.3s ease;
 }
 
 .target-card:hover {
@@ -358,12 +429,27 @@
   font-size: 1.25rem;
   color: #1e3c72;
   margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
 }
 
 .target-card p {
   color: #6b7280;
   line-height: 1.5;
   margin: 0;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 타겟 카드 */
+.dark .target-card {
+  background: #1e293b;
+}
+
+.dark .target-card h4 {
+  color: #f8fafc;
+}
+
+.dark .target-card p {
+  color: #cbd5e1;
 }
 
 .slogan-section {
@@ -385,7 +471,12 @@
   font-size: 1.125rem;
   font-weight: 500;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+/* 다크모드에서 슬로건 아이템 */
+.dark .slogan-item {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
 }
 
 .slogan-item:hover {
@@ -407,18 +498,34 @@
   padding: 2rem;
   border-radius: 16px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: background 0.3s ease;
 }
 
 .style-item h4 {
   font-size: 1.25rem;
   color: #1e3c72;
   margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
 }
 
 .style-item p {
   color: #6b7280;
   line-height: 1.5;
   margin: 0;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 스타일 아이템 */
+.dark .style-item {
+  background: #1e293b;
+}
+
+.dark .style-item h4 {
+  color: #f8fafc;
+}
+
+.dark .style-item p {
+  color: #cbd5e1;
 }
 
 @media (max-width: 768px) {

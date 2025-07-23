@@ -123,7 +123,7 @@ const handleSearch = async () => {
 };
 
 const handleStop = () => {
-  searchStore.stopSearch();
+  searchStore.clearSearch();
 };
 
 const handleClear = () => {

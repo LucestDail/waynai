@@ -31,17 +31,19 @@ public class GeminiApiClient {
     }
     
     public Mono<GeminiResponseDto> generateContent(String prompt, Double temperature, Integer maxTokens) {
-        log.info("Generating content with Gemini API. Prompt length: {}", prompt.length());
-        
+        log.info("[Gemini] 요청 프롬프트:\n{}", prompt);
         GeminiRequestDto request = createRequest(prompt, temperature, maxTokens);
-        
         return webClient.post()
                 .uri(apiUrl + "?key=" + apiKey)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .bodyValue(request)
                 .retrieve()
                 .bodyToMono(GeminiResponseDto.class)
-                .doOnSuccess(response -> log.info("Gemini API response received successfully"))
+                .doOnSuccess(response -> {
+                    log.info("[Gemini] 응답 전체: {}", response);
+                    String text = extractTextFromResponse(response);
+                    log.info("[Gemini] 추출된 텍스트: {}", text);
+                })
                 .doOnError(error -> log.error("Gemini API request failed: {}", error.getMessage()));
     }
     

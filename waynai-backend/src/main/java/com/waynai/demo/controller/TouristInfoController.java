@@ -33,7 +33,7 @@ public class TouristInfoController {
         
         try {
             List<TouristApiResponseDto.TouristItem> spots = touristInfoService
-                    .getAreaBasedRelatedSpots(areaCd, signguCd, pageNo, numOfRows)
+                    .getAreaBasedSpots(areaCd, signguCd, pageNo, numOfRows)
                     .block();
             
             return ResponseEntity.ok(ApiResponseDto.<List<TouristApiResponseDto.TouristItem>>builder()
@@ -67,7 +67,7 @@ public class TouristInfoController {
         
         try {
             List<TouristApiResponseDto.TouristItem> spots = touristInfoService
-                    .getKeywordBasedRelatedSpots(keyword, areaCd, signguCd, pageNo, numOfRows)
+                    .getKeywordBasedSpots(keyword, areaCd, signguCd, pageNo, numOfRows)
                     .block();
             
             return ResponseEntity.ok(ApiResponseDto.<List<TouristApiResponseDto.TouristItem>>builder()

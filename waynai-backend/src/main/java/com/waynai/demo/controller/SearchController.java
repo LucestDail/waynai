@@ -5,10 +5,8 @@ import com.waynai.demo.dto.SearchResponseDto;
 import com.waynai.demo.service.SearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 
 @Slf4j
 @RestController
@@ -19,21 +17,30 @@ public class SearchController {
     private final SearchService searchService;
     
     /**
-     * SSE를 통한 실시간 검색 처리
+     * 단순 검색 처리
      */
-    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public ResponseEntity<Flux<SearchResponseDto>> searchStream(@RequestBody SearchRequestDto request) {
-        log.info("Starting search stream for query: {}", request.getQuery());
+    @PostMapping("/search")
+    public ResponseEntity<SearchResponseDto> search(@RequestBody SearchRequestDto request) {
+        log.info("Received search request: {}", request);
+        log.info("Query: '{}', Destination: '{}', Theme: '{}', Days: {}", 
+                request.getQuery(), request.getDestination(), request.getTheme(), request.getDays());
         
-        Flux<SearchResponseDto> searchFlux = searchService.processSearch(request)
-                .doOnNext(response -> log.debug("Search response: {}", response.getStatus()))
-                .doOnComplete(() -> log.info("Search stream completed"))
-                .doOnError(error -> log.error("Search stream error: {}", error.getMessage()));
-        
-        return ResponseEntity.ok()
-                .header("Cache-Control", "no-cache")
-                .header("Connection", "keep-alive")
-                .body(searchFlux);
+        try {
+            SearchResponseDto response = searchService.processSearchSimple(request);
+            log.info("Search completed successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Search failed: {}", e.getMessage(), e);
+            SearchResponseDto errorResponse = SearchResponseDto.builder()
+                    .status("error")
+                    .message("검색 중 오류가 발생했습니다")
+                    .step("error")
+                    .data(e.getMessage())
+                    .timestamp(java.time.LocalDateTime.now())
+                    .progress(java.util.Arrays.asList("오류 발생: " + e.getMessage()))
+                    .build();
+            return ResponseEntity.ok(errorResponse);
+        }
     }
     
     /**

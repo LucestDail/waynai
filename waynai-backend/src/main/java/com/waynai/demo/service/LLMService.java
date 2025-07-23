@@ -1,12 +1,12 @@
 package com.waynai.demo.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.waynai.demo.client.GeminiApiClient;
 import com.waynai.demo.dto.TourCourseRequestDto;
 import com.waynai.demo.dto.TourCourseResponseDto;
 import com.waynai.demo.dto.TouristSpotDto;
 import com.waynai.demo.dto.DayPlanDto;
 import com.waynai.demo.dto.SpotVisitDto;
+import com.waynai.demo.util.AreaCodeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class LLMService {
     
     private final GeminiApiClient geminiApiClient;
     private final TouristInfoService touristInfoService;
-    private final ObjectMapper objectMapper;
+    private final AreaCodeUtil areaCodeUtil;
     
     public GeminiApiClient getGeminiApiClient() {
         return geminiApiClient;
@@ -66,9 +66,17 @@ public class LLMService {
      */
     private String buildTouristContext(TourCourseRequestDto request) {
         try {
-            // 지역 코드 매핑 (실제로는 더 정교한 매핑이 필요)
-            String areaCd = getAreaCode(request.getDestination());
-            String signguCd = getSignguCode(request.getDestination());
+            // 지역 코드 매핑
+            AreaCodeUtil.AreaCodeInfo areaInfo = areaCodeUtil.extractAreaInfoFromKeyword(request.getDestination());
+            String areaCd = null;
+            String signguCd = null;
+            
+            if (areaInfo != null) {
+                areaCd = areaInfo.getAreaCode();
+                signguCd = areaInfo.getSignguCode();
+                log.info("Extracted area info for destination '{}': {} - {} ({} - {})", 
+                        request.getDestination(), areaInfo.getAreaName(), areaInfo.getSignguName(), areaCd, signguCd);
+            }
             
             if (areaCd != null && signguCd != null) {
                 // 키워드 기반 검색
@@ -80,71 +88,17 @@ public class LLMService {
                         areaCd, signguCd).block();
                 
                 return keywordContext + "\n\n" + areaContext;
+            } else {
+                // 지역 코드가 없는 경우 키워드만으로 검색
+                String keywordContext = touristInfoService.buildTouristContextForRAG(
+                        request.getTheme(), null, null).block();
+                return keywordContext;
             }
         } catch (Exception e) {
             log.warn("Failed to build tourist context: {}", e.getMessage());
         }
         
         return "관광지 정보를 찾을 수 없습니다.";
-    }
-    
-    /**
-     * 지역 코드 매핑 (간단한 예시)
-     */
-    private String getAreaCode(String destination) {
-        if (destination.contains("서울")) return "11";
-        if (destination.contains("부산")) return "21";
-        if (destination.contains("대구")) return "22";
-        if (destination.contains("인천")) return "23";
-        if (destination.contains("광주")) return "24";
-        if (destination.contains("대전")) return "25";
-        if (destination.contains("울산")) return "26";
-        if (destination.contains("세종")) return "29";
-        if (destination.contains("경기")) return "31";
-        if (destination.contains("강원")) return "32";
-        if (destination.contains("충북")) return "33";
-        if (destination.contains("충남")) return "34";
-        if (destination.contains("전북")) return "35";
-        if (destination.contains("전남")) return "36";
-        if (destination.contains("경북")) return "37";
-        if (destination.contains("경남")) return "38";
-        if (destination.contains("제주")) return "39";
-        return null;
-    }
-    
-    /**
-     * 시군구 코드 매핑 (간단한 예시)
-     */
-    private String getSignguCode(String destination) {
-        // 실제로는 더 정교한 매핑이 필요
-        if (destination.contains("강남")) return "11680";
-        if (destination.contains("서초")) return "11620";
-        if (destination.contains("종로")) return "11110";
-        if (destination.contains("중구")) return "11140";
-        if (destination.contains("용산")) return "11170";
-        if (destination.contains("성동")) return "11200";
-        if (destination.contains("광진")) return "11215";
-        if (destination.contains("동대문")) return "11230";
-        if (destination.contains("중랑")) return "11260";
-        if (destination.contains("성북")) return "11290";
-        if (destination.contains("강북")) return "11305";
-        if (destination.contains("도봉")) return "11320";
-        if (destination.contains("노원")) return "11350";
-        if (destination.contains("은평")) return "11380";
-        if (destination.contains("서대문")) return "11410";
-        if (destination.contains("마포")) return "11440";
-        if (destination.contains("양천")) return "11470";
-        if (destination.contains("강서")) return "11500";
-        if (destination.contains("구로")) return "11530";
-        if (destination.contains("금천")) return "11545";
-        if (destination.contains("영등포")) return "11560";
-        if (destination.contains("동작")) return "11590";
-        if (destination.contains("관악")) return "11620";
-        if (destination.contains("서초")) return "11650";
-        if (destination.contains("강남")) return "11680";
-        if (destination.contains("송파")) return "11710";
-        if (destination.contains("강동")) return "11740";
-        return null;
     }
     
     private TourCourseResponseDto createSampleCourseResponse(TourCourseRequestDto request, List<TouristSpotDto> spots, String courseId) {
@@ -278,10 +232,6 @@ public class LLMService {
         return tips;
     }
     
-    private String createCourseGenerationPrompt(TourCourseRequestDto request, List<TouristSpotDto> availableSpots) {
-        return createCourseGenerationPromptWithRAG(request, availableSpots, "");
-    }
-    
     private String createCourseGenerationPromptWithRAG(TourCourseRequestDto request, List<TouristSpotDto> availableSpots, String touristContext) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("당신은 전문 여행 코스 설계사입니다. 다음 정보를 바탕으로 상세한 관광 코스를 생성해주세요.\n\n");
@@ -381,22 +331,33 @@ public class LLMService {
     
     private List<String> parseTravelTips(String llmResponse) {
         List<String> tips = new ArrayList<>();
-        String[] lines = llmResponse.split("\n");
         
-        for (String line : lines) {
-            line = line.trim();
-            if (line.matches("^\\d+\\..*")) {
-                // 번호가 있는 라인에서 팁 추출
-                String tip = line.replaceFirst("^\\d+\\.\\s*", "");
-                if (!tip.isEmpty()) {
-                    tips.add(tip);
+        try {
+            // 간단한 파싱 (실제로는 더 정교한 파싱이 필요)
+            String[] lines = llmResponse.split("\n");
+            for (String line : lines) {
+                line = line.trim();
+                if (!line.isEmpty() && (line.matches("\\d+\\..*") || line.matches("^[•·-].*"))) {
+                    // 번호나 불릿 제거
+                    String tip = line.replaceAll("^\\d+\\.\\s*", "").replaceAll("^[•·-]\\s*", "");
+                    if (!tip.isEmpty()) {
+                        tips.add(tip);
+                    }
                 }
-            } else if (!line.isEmpty() && tips.size() < 5) {
-                // 번호가 없는 라인도 팁으로 추가
-                tips.add(line);
             }
+        } catch (Exception e) {
+            log.warn("Failed to parse travel tips: {}", e.getMessage());
         }
         
-        return tips.isEmpty() ? Arrays.asList("교통카드 준비", "편안한 신발 착용", "카메라 준비") : tips;
+        // 파싱 실패 시 기본 팁 반환
+        if (tips.isEmpty()) {
+            tips.add("교통카드 준비");
+            tips.add("편안한 신발 착용");
+            tips.add("카메라 준비");
+            tips.add("충분한 현금 준비");
+            tips.add("응급약품 준비");
+        }
+        
+        return tips;
     }
 } 

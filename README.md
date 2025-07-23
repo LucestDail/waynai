@@ -84,14 +84,28 @@ waynai/
 
 ## 🚀 빠른 시작
 
-### 1. 백엔드 실행
+### 방법 1: 한번에 실행 (권장)
+
+#### macOS/Linux
+```bash
+./start-dev.sh
+```
+
+#### Windows
+```cmd
+start-dev.bat
+```
+
+### 방법 2: 개별 실행
+
+#### 1. 백엔드 실행
 
 ```bash
 cd waynai-backend
 ./mvnw spring-boot:run
 ```
 
-### 2. 프론트엔드 실행
+#### 2. 프론트엔드 실행
 
 ```bash
 cd waynai-frontend

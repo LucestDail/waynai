@@ -25,45 +25,45 @@ export const useSearchStore = defineStore('search', () => {
       state.result = null;
       state.error = null;
 
-      await searchService.searchStream(
-        request,
-        (response: SearchResponse) => {
-          state.currentStatus = response.status;
-          state.currentStep = response.step;
-          state.progress = response.progress;
-          
-          if (response.data) {
-            state.result = response.data;
-          }
-          
-          if (response.status === 'completed') {
-            state.isSearching = false;
-            isLoading.value = false;
-          }
-        },
-        (error: Event) => {
-          state.error = '검색 중 오류가 발생했습니다.';
-          state.isSearching = false;
-          isLoading.value = false;
-          console.error('Search error:', error);
-        },
-        () => {
-          state.isSearching = false;
-          isLoading.value = false;
-        }
-      );
-    } catch (error) {
-      state.error = '검색을 시작할 수 없습니다.';
+      console.log('Starting search with request:', request);
+
+      const response = await searchService.search(request);
+      console.log('Received search response:', response);
+      
+      // 상태 업데이트
+      if (response.status) {
+        state.currentStatus = response.status;
+      }
+      
+      if (response.step) {
+        state.currentStep = response.step;
+      }
+      
+      if (response.progress && Array.isArray(response.progress)) {
+        state.progress = [...response.progress];
+      }
+      
+      // 결과 데이터 처리
+      if (response.data !== undefined) {
+        console.log('Received result data:', response.data);
+        state.result = response.data;
+      }
+      
+      // 에러 상태 처리
+      if (response.status === 'error') {
+        console.error('Search completed with error:', response.data);
+        state.error = response.data || '검색 중 오류가 발생했습니다.';
+      }
+      
       state.isSearching = false;
       isLoading.value = false;
-      console.error('Failed to start search:', error);
+      
+    } catch (error) {
+      console.error('Search failed:', error);
+      state.error = '검색 중 오류가 발생했습니다.';
+      state.isSearching = false;
+      isLoading.value = false;
     }
-  };
-
-  const stopSearch = () => {
-    searchService.closeConnection();
-    state.isSearching = false;
-    isLoading.value = false;
   };
 
   const clearSearch = () => {
@@ -82,7 +82,6 @@ export const useSearchStore = defineStore('search', () => {
     state,
     isLoading,
     startSearch,
-    stopSearch,
     clearSearch,
     checkHealth
   };
