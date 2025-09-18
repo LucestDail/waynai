@@ -3,16 +3,13 @@ import { RouterView } from 'vue-router'
 import AppNavigation from '@/components/AppNavigation.vue'
 import TravelGuideButton from '@/components/TravelGuideButton.vue'
 import { useThemeStore } from '@/stores/theme'
-import { useLanguageStore } from '@/stores/language'
 import { onMounted } from 'vue'
 
 const themeStore = useThemeStore()
-const languageStore = useLanguageStore()
 
 onMounted(() => {
   themeStore.initTheme()
   themeStore.watchSystemTheme()
-  languageStore.initLanguage()
 })
 </script>
 
@@ -41,6 +38,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  transition: background 0.3s ease;
+}
+
+.dark #app {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
 }
 
 .main {

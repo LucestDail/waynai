@@ -30,28 +30,10 @@ const handleSearch = () => {
   <div class="home">
     <div class="hero-section">
       <div class="hero-content">
-        <div class="hero-badge">
-          <span class="badge-text">✨ AI 기반 여행 파트너</span>
-        </div>
         <h1 class="hero-title">당신의 여행 길을<br>함께 찾아드립니다</h1>
         <p class="hero-subtitle">
-          WaynAI는 단순한 정보 검색이 아닌, 당신의 취향과 상황에 맞춘 
-          <strong>맞춤형 여행 동반자</strong>입니다
+          AI가 이끄는 당신만의 특별한 여행 경험
         </p>
-        <div class="hero-features">
-          <div class="feature-item">
-            <div class="feature-icon">🧠</div>
-            <span>AI 여행 플래너</span>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">🗺️</div>
-            <span>루트 최적화</span>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">💬</div>
-            <span>대화형 가이드</span>
-          </div>
-        </div>
       </div>
       <div class="hero-visual">
         <div class="floating-card card-1">
@@ -112,73 +94,6 @@ const handleSearch = () => {
       </div>
     </div>
 
-    <div class="features-section">
-      <div class="features-container">
-        <div class="section-header">
-          <h2 class="section-title">WaynAI만의 특별한 기능</h2>
-          <p class="section-subtitle">AI 기술로 구현하는 차별화된 여행 경험</p>
-        </div>
-        
-        <div class="features-grid">
-          <div class="feature-card">
-            <div class="feature-icon-wrapper">
-              <div class="feature-icon">🤖</div>
-            </div>
-            <h3 class="feature-title">AI 여행 플래너</h3>
-            <p class="feature-description">
-              날짜, 예산, 관심사를 입력하면 AI가 최적의 여행 일정을 자동으로 생성합니다. 
-              개인화된 여행 경험을 설계해드립니다.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon-wrapper">
-              <div class="feature-icon">💬</div>
-            </div>
-            <h3 class="feature-title">대화형 여행 가이드</h3>
-            <p class="feature-description">
-              자연어로 자유롭게 질문하세요. 여행지 설명, 역사/문화 맥락, 
-              음식 추천까지 GPT 기반으로 답변해드립니다.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon-wrapper">
-              <div class="feature-icon">🎯</div>
-            </div>
-            <h3 class="feature-title">현지 맞춤 추천</h3>
-            <p class="feature-description">
-              날씨, 시간대, 계절, 현재 트렌드를 고려한 현지 맞춤 추천. 
-              신뢰도 높은 현지 정보를 바탕으로 정확한 추천을 제공합니다.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon-wrapper">
-              <div class="feature-icon">🗺️</div>
-            </div>
-            <h3 class="feature-title">루트 최적화</h3>
-            <p class="feature-description">
-              지도 기반 추천 코스와 실시간 교통 정보를 제공합니다. 
-              효율적인 동선으로 더 많은 곳을 둘러볼 수 있습니다.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cta-section">
-      <div class="cta-container">
-        <h2 class="cta-title">지금 바로 시작해보세요</h2>
-        <p class="cta-description">
-          "어디로 갈까?" 고민할 때, WaynAI가 방향을 제시해드립니다
-        </p>
-        <div class="cta-buttons">
-          <router-link to="/travel-plan" class="cta-button primary">여행 계획 시작하기</router-link>
-          <router-link to="/about" class="cta-button secondary">더 알아보기</router-link>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -211,19 +126,6 @@ const handleSearch = () => {
   color: white;
 }
 
-.hero-badge {
-  margin-bottom: 2rem;
-}
-
-.badge-text {
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
 
 .hero-title {
   font-size: 3.5rem;
@@ -244,26 +146,6 @@ const handleSearch = () => {
   color: #e0e7ff;
 }
 
-.hero-features {
-  display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.feature-icon {
-  font-size: 1.25rem;
-}
 
 .hero-visual {
   position: relative;
@@ -379,7 +261,7 @@ const handleSearch = () => {
 
 .search-description {
   font-size: 1.125rem;
-  color: #6b7280;
+  color: #374151;
   line-height: 1.6;
   transition: color 0.3s ease;
 }
@@ -390,13 +272,18 @@ const handleSearch = () => {
 }
 
 .dark .search-description {
-  color: #cbd5e1;
+  color: #e2e8f0;
 }
 
 .loading-container {
   text-align: center;
   padding: 2rem 0;
   color: #6b7280;
+  transition: color 0.3s ease;
+}
+
+.dark .loading-container {
+  color: #9ca3af;
 }
 
 .loading-spinner {
@@ -407,6 +294,12 @@ const handleSearch = () => {
   height: 40px;
   animation: spin 1s linear infinite;
   margin: 0 auto 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.dark .loading-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top: 4px solid #60a5fa;
 }
 
 @keyframes spin {
@@ -418,195 +311,6 @@ const handleSearch = () => {
   font-size: 1.125rem;
 }
 
-.features-section {
-  padding: 6rem 2rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  transition: background 0.3s ease;
-}
-
-/* 다크모드에서 피처 섹션 */
-.dark .features-section {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-}
-
-.features-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.section-header {
-  text-align: center;
-  margin-bottom: 4rem;
-}
-
-.section-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #1e3c72;
-  margin-bottom: 1rem;
-  transition: color 0.3s ease;
-}
-
-.section-subtitle {
-  font-size: 1.125rem;
-  color: #6b7280;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 섹션 제목과 부제목 */
-.dark .section-title {
-  color: #f8fafc;
-}
-
-.dark .section-subtitle {
-  color: #cbd5e1;
-}
-
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
-}
-
-.feature-card {
-  background: white;
-  padding: 2.5rem;
-  border-radius: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  text-align: center;
-}
-
-.feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-}
-
-/* 다크모드에서 피처 카드 */
-.dark .feature-card {
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark .feature-card:hover {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.feature-icon-wrapper {
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.5rem;
-  transition: background 0.3s ease;
-}
-
-/* 다크모드에서 피처 아이콘 래퍼 */
-.dark .feature-icon-wrapper {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-}
-
-.feature-icon {
-  font-size: 2rem;
-}
-
-.feature-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1e3c72;
-  margin-bottom: 1rem;
-  transition: color 0.3s ease;
-}
-
-.feature-description {
-  color: #6b7280;
-  line-height: 1.6;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 피처 텍스트 */
-.dark .feature-title {
-  color: #f8fafc;
-}
-
-.dark .feature-description {
-  color: #cbd5e1;
-}
-
-.cta-section {
-  padding: 6rem 2rem;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  text-align: center;
-  color: white;
-  transition: background 0.3s ease;
-}
-
-/* 다크모드에서 CTA 섹션 */
-.dark .cta-section {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-}
-
-.cta-container {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.cta-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-}
-
-.cta-description {
-  font-size: 1.125rem;
-  opacity: 0.9;
-  margin-bottom: 2rem;
-  line-height: 1.6;
-}
-
-.cta-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.cta-button {
-  padding: 1rem 2rem;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 1rem;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.cta-button.primary {
-  background: white;
-  color: #1e3c72;
-}
-
-.cta-button.primary:hover {
-  background: #f8fafc;
-  transform: translateY(-2px);
-}
-
-.cta-button.secondary {
-  background: transparent;
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-}
-
-.cta-button.secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.5);
-}
 
 .home-search {
   display: flex;
@@ -664,98 +368,134 @@ const handleSearch = () => {
 }
 
 @media (max-width: 768px) {
-  
   .hero-section {
     grid-template-columns: 1fr;
     gap: 2rem;
-    padding: 4rem 1rem 2rem;
+    padding: 2rem 1rem;
     text-align: center;
+    min-height: 60vh;
   }
 
   .hero-title {
     font-size: 2.5rem;
+    margin-bottom: 1rem;
   }
 
   .hero-subtitle {
     font-size: 1.125rem;
-  }
-
-  .hero-features {
-    justify-content: center;
-    flex-direction: column;
-    gap: 1rem;
+    margin-bottom: 2rem;
   }
 
   .hero-visual {
-    height: 300px;
+    height: 250px;
+    margin-top: 2rem;
   }
 
   .floating-card {
-    padding: 1rem;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .card-content h4 {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .card-content p {
+    font-size: 0.75rem;
   }
 
   .search-section {
     margin: 1rem;
     padding: 2rem 1rem;
+    border-radius: 16px;
   }
 
   .search-title {
-    font-size: 2rem;
+    font-size: 1.75rem;
+    margin-bottom: 0.75rem;
   }
 
-  .features-section {
-    padding: 3rem 1rem;
+  .search-description {
+    font-size: 1rem;
+    margin-bottom: 2rem;
   }
 
-  .section-title {
-    font-size: 2rem;
-  }
-
-  .feature-card {
-    padding: 2rem;
-  }
-
-  .cta-section {
-    padding: 3rem 1rem;
-  }
-
-  .cta-title {
-    font-size: 2rem;
-  }
-
-  .cta-buttons {
+  .home-search {
     flex-direction: column;
-    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .home-search-input {
+    padding: 0.875rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .home-search-button {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
+  .hero-section {
+    padding: 1.5rem 0.75rem;
+    min-height: 50vh;
+  }
+
   .hero-title {
-    font-size: 2rem;
+    font-size: 1.75rem;
+    line-height: 1.3;
   }
   
   .hero-subtitle {
-    font-size: 1rem;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-visual {
+    height: 200px;
+    margin-top: 1.5rem;
   }
   
-  .search-container {
-    padding: 1rem;
+  .search-section {
+    margin: 0.75rem;
+    padding: 1.5rem 0.75rem;
+    border-radius: 12px;
   }
   
   .search-title {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .search-description {
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
   }
   
   .floating-card {
-    padding: 0.75rem;
+    padding: 0.5rem;
+    font-size: 0.8rem;
   }
   
   .card-content h4 {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    margin-bottom: 0.2rem;
   }
   
   .card-content p {
     font-size: 0.7rem;
+  }
+
+  .home-search-input {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.85rem;
+  }
+
+  .home-search-button {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.85rem;
   }
 }
 

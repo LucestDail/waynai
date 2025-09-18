@@ -15,26 +15,14 @@
       </div>
       
       <nav class="nav">
-        <router-link to="/" class="nav-link">{{ t('nav.home') }}</router-link>
-        <router-link to="/travel-plan" class="nav-link">{{ t('nav.travel_plan') }}</router-link>
-        <router-link to="/tourist-info" class="nav-link">{{ t('nav.tourist_info') }}</router-link>
-        <router-link to="/recommendations" class="nav-link">{{ t('nav.recommendations') }}</router-link>
-        <router-link to="/about" class="nav-link">{{ t('nav.about') }}</router-link>
+        <router-link to="/" class="nav-link">홈</router-link>
+        <router-link to="/about" class="nav-link">소개</router-link>
         
         <!-- 다크모드 토글 -->
         <button @click="toggleTheme" class="theme-toggle" :title="isDarkMode ? '라이트 모드로 변경' : '다크 모드로 변경'">
           <span v-if="isDarkMode" class="theme-icon">☀️</span>
           <span v-else class="theme-icon">🌙</span>
         </button>
-        
-        <!-- 언어 설정 -->
-        <div class="language-selector">
-          <select v-model="currentLanguage" @change="handleLanguageChange" class="language-select">
-            <option v-for="lang in languages" :key="lang.code" :value="lang.code">
-              {{ lang.flag }} {{ lang.name }}
-            </option>
-          </select>
-        </div>
       </nav>
       
       <div class="nav-toggle" @click="toggleMobileMenu">
@@ -47,9 +35,6 @@
     <!-- 모바일 메뉴 -->
     <div v-if="isMobileMenuOpen" class="mobile-menu">
       <router-link to="/" class="mobile-nav-link" @click="closeMobileMenu">홈</router-link>
-      <router-link to="/travel-plan" class="mobile-nav-link" @click="closeMobileMenu">여행 계획</router-link>
-      <router-link to="/tourist-info" class="mobile-nav-link" @click="closeMobileMenu">관광 정보</router-link>
-      <router-link to="/recommendations" class="mobile-nav-link" @click="closeMobileMenu">추천</router-link>
       <router-link to="/about" class="mobile-nav-link" @click="closeMobileMenu">소개</router-link>
     </div>
   </header>
@@ -58,14 +43,11 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useThemeStore } from '@/stores/theme';
-import { useLanguageStore } from '@/stores/language';
 
 const isMobileMenuOpen = ref(false);
 const themeStore = useThemeStore();
-const languageStore = useLanguageStore();
 
 const { isDarkMode, toggleTheme } = themeStore;
-const { currentLanguage, languages, changeLanguage, t } = languageStore;
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value;
@@ -73,11 +55,6 @@ const toggleMobileMenu = () => {
 
 const closeMobileMenu = () => {
   isMobileMenuOpen.value = false;
-};
-
-const handleLanguageChange = (event: Event) => {
-  const target = event.target as HTMLSelectElement;
-  languageStore.changeLanguage(target.value);
 };
 </script>
 
@@ -212,35 +189,6 @@ const handleLanguageChange = (event: Event) => {
   background: rgba(96, 165, 250, 0.1);
 }
 
-.language-selector {
-  margin-left: 1rem;
-}
-
-.language-select {
-  padding: 0.5rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: white;
-  font-size: 0.875rem;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
-}
-
-.language-select:focus {
-  border-color: #667eea;
-}
-
-/* 다크모드에서 언어 선택 */
-.dark .language-select {
-  background: #1e293b;
-  border-color: #475569;
-  color: #f1f5f9;
-}
-
-.dark .language-select:focus {
-  border-color: #60a5fa;
-}
 
 .theme-toggle {
   background: none;
@@ -323,13 +271,22 @@ const handleLanguageChange = (event: Event) => {
 /* 모바일 대응 */
 @media (max-width: 768px) {
   .header-container {
-    padding: 1rem;
-    flex-direction: column;
-    gap: 1rem;
+    padding: 0.75rem 1rem;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .logo-section {
-    align-items: center;
+    align-items: flex-start;
+  }
+
+  .logo-text {
+    font-size: 1.25rem;
+  }
+
+  .tagline {
+    font-size: 0.75rem;
   }
 
   .nav {
@@ -338,13 +295,53 @@ const handleLanguageChange = (event: Event) => {
   
   .nav-toggle {
     display: flex;
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
+    position: static;
+  }
+
+  .nav-toggle span {
+    width: 20px;
+    height: 2px;
+    background: #374151;
+    transition: all 0.3s ease;
+  }
+
+  .dark .nav-toggle span {
+    background: #e2e8f0;
   }
   
   .mobile-menu {
     display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+
+  .mobile-nav-link {
+    padding: 0.75rem 0;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-container {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .logo-text {
+    font-size: 1.125rem;
+  }
+
+  .tagline {
+    font-size: 0.7rem;
+  }
+
+  .mobile-menu {
+    padding: 0.75rem;
+  }
+
+  .mobile-nav-link {
+    padding: 0.625rem 0;
+    font-size: 0.85rem;
   }
 }
 </style> 
