@@ -1,137 +1,83 @@
 <template>
-  <div class="travel-guide-container">
-    <!-- 상담사 버튼 -->
+  <div class="waynai-info-container">
+    <!-- WanynAi 소개 버튼 -->
     <button 
-      class="guide-button"
-      @click="toggleGuide"
-      :class="{ 'active': isGuideOpen }"
+      class="info-button"
+      @click="toggleInfo"
+      :class="{ 'active': isInfoOpen }"
     >
-      <div class="guide-icon">🤖</div>
-      <span class="guide-text">여행 가이드</span>
+      <div class="info-icon">🧠</div>
+      <span class="info-text">WanynAi란?</span>
     </button>
 
-    <!-- 상담 채팅창 -->
-    <div v-if="isGuideOpen" class="guide-chat">
-      <div class="chat-header">
-        <h3>{{ t('travel_guide.title') }}</h3>
-        <button class="close-button" @click="toggleGuide">×</button>
+    <!-- 소개 팝업 -->
+    <div v-if="isInfoOpen" class="info-popup">
+      <div class="popup-header">
+        <h3>WanynAI 소개</h3>
+        <button class="close-button" @click="toggleInfo">×</button>
       </div>
       
-      <div class="chat-messages" ref="chatMessages">
-        <div 
-          v-for="(message, index) in messages" 
-          :key="index"
-          :class="['message', message.type]"
-        >
-          <div class="message-content">{{ message.content }}</div>
-          <div class="message-time">{{ message.time }}</div>
+      <div class="popup-content">
+        <div class="brand-intro">
+          <div class="brand-logo">
+            <div class="logo-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/>
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+              </svg>
+            </div>
+            <h4>WanynAI</h4>
+          </div>
+          <p class="brand-slogan">"당신의 길을 함께 찾는 여행 파트너"</p>
         </div>
-      </div>
-      
-      <div class="chat-input">
-        <input
-          v-model="userInput"
-          @keyup.enter="sendMessage"
-          :placeholder="t('travel_guide.placeholder')"
-          class="input-field"
-        />
-        <button @click="sendMessage" class="send-button">{{ t('travel_guide.send') }}</button>
+
+        <div class="features-list">
+          <div class="feature-item">
+            <span class="feature-icon">🤖</span>
+            <span class="feature-text">AI 여행 플래너</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🎯</span>
+            <span class="feature-text">현지 맞춤 추천</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🗺️</span>
+            <span class="feature-text">루트 최적화</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">💬</span>
+            <span class="feature-text">대화형 여행 가이드</span>
+          </div>
+        </div>
+
+        <div class="description">
+          <p>WanynAI는 AI를 활용한 여행 계획 및 관광지 추천 서비스입니다. 
+          사용자의 목적, 취향, 일정에 따라 맞춤형 여행을 설계해드립니다.</p>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue';
-import { useLanguageStore } from '@/stores/language';
+import { ref } from 'vue';
 
-const languageStore = useLanguageStore();
-const { t } = languageStore;
+const isInfoOpen = ref(false);
 
-const isGuideOpen = ref(false);
-const userInput = ref('');
-const messages = ref([
-  {
-    type: 'bot',
-    content: t('travel_guide.welcome'),
-    time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-  }
-]);
-
-const chatMessages = ref<HTMLElement>();
-
-const toggleGuide = () => {
-  isGuideOpen.value = !isGuideOpen.value;
-  if (isGuideOpen.value) {
-    nextTick(() => {
-      scrollToBottom();
-    });
-  }
+const toggleInfo = () => {
+  isInfoOpen.value = !isInfoOpen.value;
 };
-
-const sendMessage = () => {
-  if (!userInput.value.trim()) return;
-  
-  // 사용자 메시지 추가
-  messages.value.push({
-    type: 'user',
-    content: userInput.value,
-    time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-  });
-  
-  const userMessage = userInput.value;
-  userInput.value = '';
-  
-  // 봇 응답 시뮬레이션
-  setTimeout(() => {
-    const botResponse = generateBotResponse(userMessage);
-    messages.value.push({
-      type: 'bot',
-      content: botResponse,
-      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-    });
-    
-    nextTick(() => {
-      scrollToBottom();
-    });
-  }, 1000);
-};
-
-const generateBotResponse = (userMessage: string): string => {
-  const responses = [
-    '좋은 질문이네요! 더 자세한 정보를 알려드릴게요.',
-    '그 부분에 대해 도움을 드릴 수 있습니다.',
-    '여행 계획을 세우는 데 도움이 될 것 같아요.',
-    '추천해드릴 수 있는 곳들이 있어요.',
-    '그 지역에 대한 정보를 찾아보겠습니다.'
-  ];
-  
-  return responses[Math.floor(Math.random() * responses.length)];
-};
-
-const scrollToBottom = () => {
-  if (chatMessages.value) {
-    chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
-  }
-};
-
-onMounted(() => {
-  // 초기 스크롤
-  nextTick(() => {
-    scrollToBottom();
-  });
-});
 </script>
 
 <style scoped>
-.travel-guide-container {
+.waynai-info-container {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
   z-index: 1000;
 }
 
-.guide-button {
+.info-button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -146,48 +92,56 @@ onMounted(() => {
   font-weight: 600;
 }
 
-/* 다크모드에서 가이드 버튼 */
-.dark .guide-button {
+/* 다크모드에서 정보 버튼 */
+.dark .info-button {
   background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
 }
 
-.guide-button:hover {
+.info-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
 }
 
-.guide-button.active {
+.info-button.active {
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
 }
 
-.dark .guide-button.active {
+.dark .info-button.active {
   background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
 }
 
-.guide-icon {
+.info-icon {
   font-size: 1.5rem;
 }
 
-.guide-text {
+.info-text {
   font-size: 0.9rem;
 }
 
-.guide-chat {
+.info-popup {
   position: absolute;
   bottom: 100%;
   right: 0;
-  width: 350px;
-  height: 500px;
+  width: 400px;
+  max-height: 500px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   margin-bottom: 1rem;
+  overflow: hidden;
+  transition: background 0.3s ease;
 }
 
-.chat-header {
+/* 다크모드에서 팝업 */
+.dark .info-popup {
+  background: #1e293b;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.popup-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -198,14 +152,14 @@ onMounted(() => {
   transition: background 0.3s ease;
 }
 
-/* 다크모드에서 채팅 헤더 */
-.dark .chat-header {
+/* 다크모드에서 팝업 헤더 */
+.dark .popup-header {
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
 }
 
-.chat-header h3 {
+.popup-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
@@ -221,121 +175,180 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
 }
 
-.chat-messages {
-  flex: 1;
-  padding: 1rem;
+.close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.popup-content {
+  padding: 1.5rem;
   overflow-y: auto;
+  max-height: 400px;
+}
+
+.brand-intro {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.brand-logo {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
-.message {
-  display: flex;
-  flex-direction: column;
-  max-width: 80%;
-}
-
-.message.bot {
-  align-self: flex-start;
-}
-
-.message.user {
-  align-self: flex-end;
-}
-
-.message-content {
-  padding: 0.75rem 1rem;
-  border-radius: 16px;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.message.bot .message-content {
-  background: #f1f5f9;
-  color: #374151;
-}
-
-.message.user .message-content {
+.logo-icon {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
   transition: background 0.3s ease;
 }
 
-/* 다크모드에서 사용자 메시지 */
-.dark .message.user .message-content {
+/* 다크모드에서 로고 아이콘 */
+.dark .logo-icon {
   background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
 }
 
-.message-time {
-  font-size: 0.75rem;
-  color: #9ca3af;
-  margin-top: 0.25rem;
-  align-self: flex-end;
+.logo-icon svg {
+  color: white;
 }
 
-.chat-input {
-  display: flex;
-  gap: 0.5rem;
-  padding: 1rem;
-  border-top: 1px solid #e5e7eb;
+.brand-logo h4 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e3c72;
+  margin: 0;
+  transition: color 0.3s ease;
 }
 
-.input-field {
-  flex: 1;
-  padding: 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+/* 다크모드에서 브랜드 로고 */
+.dark .brand-logo h4 {
+  color: #f8fafc;
+}
+
+.brand-slogan {
   font-size: 0.9rem;
-  outline: none;
+  color: #6b7280;
+  font-style: italic;
+  margin: 0;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 브랜드 슬로건 */
+.dark .brand-slogan {
+  color: #9ca3af;
+}
+
+.features-list {
+  margin-bottom: 1.5rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
   transition: border-color 0.3s ease;
 }
 
-.input-field:focus {
-  border-color: #667eea;
+/* 다크모드에서 기능 아이템 */
+.dark .feature-item {
+  border-bottom: 1px solid #374151;
 }
 
-.send-button {
-  padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
+.feature-item:last-child {
+  border-bottom: none;
+}
+
+.feature-icon {
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+}
+
+.feature-text {
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 기능 텍스트 */
+.dark .feature-text {
+  color: #e2e8f0;
+}
+
+.description {
+  background: #f8fafc;
+  padding: 1rem;
   border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: transform 0.2s ease;
+  border-left: 4px solid #667eea;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-/* 다크모드에서 전송 버튼 */
-.dark .send-button {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+/* 다크모드에서 설명 */
+.dark .description {
+  background: #0f172a;
+  border-left-color: #3b82f6;
 }
 
-.send-button:hover {
-  transform: translateY(-1px);
+.description p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #6b7280;
+  transition: color 0.3s ease;
+}
+
+/* 다크모드에서 설명 텍스트 */
+.dark .description p {
+  color: #cbd5e1;
 }
 
 /* 모바일 대응 */
 @media (max-width: 768px) {
-  .travel-guide-container {
+  .waynai-info-container {
     bottom: 1rem;
     right: 1rem;
   }
   
-  .guide-chat {
-    width: 300px;
-    height: 400px;
+  .info-popup {
+    width: 320px;
+    max-height: 400px;
   }
   
-  .guide-text {
+  .info-text {
     display: none;
   }
   
-  .guide-button {
+  .info-button {
     padding: 1rem;
     border-radius: 50%;
+  }
+  
+  .popup-content {
+    padding: 1rem;
+  }
+  
+  .brand-logo h4 {
+    font-size: 1.25rem;
+  }
+  
+  .feature-text {
+    font-size: 0.85rem;
+  }
+  
+  .description p {
+    font-size: 0.8rem;
   }
 }
 </style> 

@@ -69,30 +69,6 @@ export const useLanguageStore = defineStore('language', () => {
         'ja': 'について',
         'zh': '关于'
       },
-      'travel_guide.title': {
-        'ko': 'WaynAI 여행 가이드',
-        'en': 'WaynAI Travel Guide',
-        'ja': 'WaynAI 旅行ガイド',
-        'zh': 'WaynAI 旅行指南'
-      },
-      'travel_guide.placeholder': {
-        'ko': '여행에 대해 궁금한 점을 물어보세요...',
-        'en': 'Ask about your travel...',
-        'ja': '旅行について質問してください...',
-        'zh': '询问您的旅行问题...'
-      },
-      'travel_guide.send': {
-        'ko': '전송',
-        'en': 'Send',
-        'ja': '送信',
-        'zh': '发送'
-      },
-      'travel_guide.welcome': {
-        'ko': '안녕하세요! WaynAI 여행 가이드입니다. 여행에 대해 궁금한 점이 있으시면 언제든 물어보세요!',
-        'en': 'Hello! I\'m WaynAI Travel Guide. Feel free to ask me anything about your travel!',
-        'ja': 'こんにちは！WaynAI旅行ガイドです。旅行について何でもお気軽にお聞きください！',
-        'zh': '您好！我是WaynAI旅行指南。请随时询问您的旅行问题！'
-      }
     }
 
     return translations[key]?.[currentLanguage.value] || key

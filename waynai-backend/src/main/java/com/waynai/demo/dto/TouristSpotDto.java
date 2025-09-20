@@ -1,38 +1,50 @@
 package com.waynai.demo.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
+/**
+ * 관광지 정보 DTO
+ */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class TouristSpotDto {
     
-    @NotBlank(message = "관광지 이름은 필수입니다")
-    private String name;
+    @JsonProperty("baseYm")
+    private String baseYm;
     
-    @NotBlank(message = "관광지 설명은 필수입니다")
-    private String description;
+    @JsonProperty("mapX")
+    private String mapX;
     
-    @NotBlank(message = "관광지 주소는 필수입니다")
-    private String address;
+    @JsonProperty("mapY")
+    private String mapY;
     
-    @NotNull(message = "위도는 필수입니다")
-    private Double latitude;
+    @JsonProperty("areaCd")
+    private String areaCd;
     
-    @NotNull(message = "경도는 필수입니다")
-    private Double longitude;
+    @JsonProperty("areaNm")
+    private String areaNm;
     
-    private String category;
-    private String imageUrl;
-    private Integer estimatedDuration; // 분 단위
-    private Double rating;
-    private String openingHours;
-    private String contactInfo;
-} 
+    @JsonProperty("signguCd")
+    private String signguCd;
+    
+    @JsonProperty("signguNm")
+    private String signguNm;
+    
+    @JsonProperty("hubTatsCd")
+    private String hubTatsCd;
+    
+    @JsonProperty("hubTatsNm")
+    private String hubTatsNm;
+    
+    @JsonProperty("hubCtgryLclsNm")
+    private String hubCtgryLclsNm;
+    
+    @JsonProperty("hubCtgryMclsNm")
+    private String hubCtgryMclsNm;
+    
+    @JsonProperty("hubCtgrySclsNm")
+    private String hubCtgrySclsNm;
+    
+    @JsonProperty("hubRank")
+    private String hubRank;
+}

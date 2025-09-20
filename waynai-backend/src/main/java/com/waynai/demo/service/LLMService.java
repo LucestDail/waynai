@@ -1,363 +1,176 @@
 package com.waynai.demo.service;
 
 import com.waynai.demo.client.GeminiApiClient;
-import com.waynai.demo.dto.TourCourseRequestDto;
-import com.waynai.demo.dto.TourCourseResponseDto;
 import com.waynai.demo.dto.TouristSpotDto;
-import com.waynai.demo.dto.DayPlanDto;
-import com.waynai.demo.dto.SpotVisitDto;
-import com.waynai.demo.util.AreaCodeUtil;
+import com.waynai.demo.dto.RelatedTouristSpotDto;
+import com.waynai.demo.util.PromptLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+/**
+ * LLM 서비스
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class LLMService {
-    
+
     private final GeminiApiClient geminiApiClient;
-    private final TouristInfoService touristInfoService;
-    private final AreaCodeUtil areaCodeUtil;
-    
-    public GeminiApiClient getGeminiApiClient() {
-        return geminiApiClient;
-    }
-    
-    public TourCourseResponseDto generateCourse(TourCourseRequestDto request, List<TouristSpotDto> availableSpots, String courseId) {
-        log.info("Generating course using LLM for course ID: {}", courseId);
-        
-        try {
-            // RAG를 위한 관광지 정보 컨텍스트 생성
-            String touristContext = buildTouristContext(request);
-            
-            // Gemini API를 사용하여 코스 생성
-            String prompt = createCourseGenerationPromptWithRAG(request, availableSpots, touristContext);
-            String llmResponse = geminiApiClient.generateContent(prompt)
-                    .map(geminiApiClient::extractTextFromResponse)
-                    .block();
-            
-            if (llmResponse != null && !llmResponse.trim().isEmpty()) {
-                // LLM 응답을 파싱하여 코스 생성 (실패 시 샘플 데이터 사용)
-                try {
-                    return parseLLMResponse(llmResponse, request, courseId);
-                } catch (Exception e) {
-                    log.warn("Failed to parse LLM response, using sample data: {}", e.getMessage());
-                }
-            }
-            
-            // LLM 응답이 없거나 파싱 실패 시 샘플 데이터 사용
-            return createSampleCourseResponse(request, availableSpots, courseId);
-            
-        } catch (Exception e) {
-            log.error("Failed to generate course using LLM: {}", e.getMessage(), e);
-            // LLM API 실패 시 샘플 데이터 사용
-            return createSampleCourseResponse(request, availableSpots, courseId);
-        }
-    }
-    
+    private final PromptLoader promptLoader;
+
     /**
-     * RAG를 위한 관광지 정보 컨텍스트 생성
+     * 여행 가이드 질의응답
+     * @param query 사용자 질의
+     * @param context 관광지 정보 컨텍스트
+     * @return 스트림 응답
      */
-    private String buildTouristContext(TourCourseRequestDto request) {
+    public Flux<String> askTravelGuide(String query, List<TouristSpotDto> context) {
+        String contextText = formatTouristSpotsContext(context);
+        return askWithPrompt("travel_guide", query, contextText);
+    }
+
+    /**
+     * 관광지 정보 질의응답
+     * @param query 사용자 질의
+     * @param context 관광지 정보 컨텍스트
+     * @return 스트림 응답
+     */
+    public Flux<String> askTouristInfo(String query, List<TouristSpotDto> context) {
+        String contextText = formatTouristSpotsContext(context);
+        return askWithPrompt("tourist_info", query, contextText);
+    }
+
+    /**
+     * 연관 관광지 질의응답
+     * @param query 사용자 질의
+     * @param context 연관 관광지 정보 컨텍스트
+     * @return 스트림 응답
+     */
+    public Flux<String> askRelatedSpots(String query, List<RelatedTouristSpotDto> context) {
+        String contextText = formatRelatedTouristSpotsContext(context);
+        return askWithPrompt("related_spots", query, contextText);
+    }
+
+    /**
+     * 일반 질의응답
+     * @param query 사용자 질의
+     * @return 스트림 응답
+     */
+    public Flux<String> askGeneral(String query) {
+        return geminiApiClient.generateTextStream(query);
+    }
+
+    /**
+     * 프롬프트를 사용한 질의응답
+     * @param promptKey 프롬프트 키
+     * @param query 사용자 질의
+     * @param context 컨텍스트
+     * @return 스트림 응답
+     */
+    private Flux<String> askWithPrompt(String promptKey, String query, String context) {
         try {
-            // 지역 코드 매핑
-            AreaCodeUtil.AreaCodeInfo areaInfo = areaCodeUtil.extractAreaInfoFromKeyword(request.getDestination());
-            String areaCd = null;
-            String signguCd = null;
-            
-            if (areaInfo != null) {
-                areaCd = areaInfo.getAreaCode();
-                signguCd = areaInfo.getSignguCode();
-                log.info("Extracted area info for destination '{}': {} - {} ({} - {})", 
-                        request.getDestination(), areaInfo.getAreaName(), areaInfo.getSignguName(), areaCd, signguCd);
+            String prompt = promptLoader.getPrompt(promptKey);
+            if (prompt == null) {
+                log.error("프롬프트를 찾을 수 없습니다: {}", promptKey);
+                return Flux.error(new RuntimeException("프롬프트를 찾을 수 없습니다: " + promptKey));
             }
-            
-            if (areaCd != null && signguCd != null) {
-                // 키워드 기반 검색
-                String keywordContext = touristInfoService.buildTouristContextForRAG(
-                        request.getTheme(), areaCd, signguCd).block();
-                
-                // 지역 기반 검색
-                String areaContext = touristInfoService.buildAreaBasedContextForRAG(
-                        areaCd, signguCd).block();
-                
-                return keywordContext + "\n\n" + areaContext;
-            } else {
-                // 지역 코드가 없는 경우 키워드만으로 검색
-                String keywordContext = touristInfoService.buildTouristContextForRAG(
-                        request.getTheme(), null, null).block();
-                return keywordContext;
-            }
-        } catch (Exception e) {
-            log.warn("Failed to build tourist context: {}", e.getMessage());
-        }
-        
-        return "관광지 정보를 찾을 수 없습니다.";
-    }
-    
-    private TourCourseResponseDto createSampleCourseResponse(TourCourseRequestDto request, List<TouristSpotDto> spots, String courseId) {
-        List<DayPlanDto> dayPlans = new ArrayList<>();
-        
-        for (int day = 1; day <= request.getDays(); day++) {
-            DayPlanDto dayPlan = createDayPlan(day, spots, request);
-            dayPlans.add(dayPlan);
-        }
-        
-        return TourCourseResponseDto.builder()
-                .courseId(courseId)
-                .title(request.getDestination() + " " + request.getTheme() + " 탐방 " + request.getDays() + "일 코스")
-                .destination(request.getDestination())
-                .totalDays(request.getDays())
-                .theme(request.getTheme())
-                .summary(request.getDestination() + "의 " + request.getTheme() + " 테마로 " + request.getDays() + "일간 즐길 수 있는 관광 코스입니다.")
-                .dayPlans(dayPlans)
-                .createdAt(LocalDateTime.now())
-                .estimatedBudget("30만원")
-                .transportationInfo(request.getTransportation() != null ? request.getTransportation() : "지하철 및 버스 이용")
-                .accommodationInfo(request.getAccommodation() != null ? request.getAccommodation() : "호텔 또는 게스트하우스")
-                .tips(Arrays.asList("교통카드 준비", "편안한 신발 착용", "카메라 준비"))
-                .weatherInfo("계절에 따라 적절한 옷차림 필요")
-                .build();
-    }
-    
-    private DayPlanDto createDayPlan(int dayNumber, List<TouristSpotDto> spots, TourCourseRequestDto request) {
-        List<SpotVisitDto> spotVisits = new ArrayList<>();
-        
-        // 각 날짜별로 2-3개 관광지 배정
-        int spotsPerDay = Math.min(3, spots.size() / request.getDays() + 1);
-        int startIndex = (dayNumber - 1) * spotsPerDay;
-        
-        for (int i = 0; i < spotsPerDay && startIndex + i < spots.size(); i++) {
-            TouristSpotDto spot = spots.get(startIndex + i);
-            SpotVisitDto spotVisit = createSpotVisit(spot, i + 1);
-            spotVisits.add(spotVisit);
-        }
-        
-        return DayPlanDto.builder()
-                .dayNumber(dayNumber)
-                .dayTitle(request.getDestination() + " " + dayNumber + "일차")
-                .overview(request.getDestination() + "의 " + request.getTheme() + " 명소들을 탐방하는 " + dayNumber + "일차입니다.")
-                .spots(spotVisits)
-                .transportation("지하철 및 버스")
-                .accommodation("호텔")
-                .meals("아침: 호텔, 점심: 현지 맛집, 저녁: 현지 맛집")
-                .estimatedCost("10만원")
-                .tips("편안한 신발 착용, 충분한 휴식 취하기")
-                .build();
-    }
-    
-    private SpotVisitDto createSpotVisit(TouristSpotDto spot, int order) {
-        return SpotVisitDto.builder()
-                .spot(spot)
-                .visitTime("09:00")
-                .duration(spot.getEstimatedDuration() != null ? spot.getEstimatedDuration() : 60)
-                .activity("관광 및 사진 촬영")
-                .notes("입장료 확인 필요")
-                .order(order)
-                .build();
-    }
-    
-    public String generateCourseDescription(TourCourseRequestDto request) {
-        log.info("Generating course description for destination: {}", request.getDestination());
-        
-        try {
-            String prompt = String.format(
-                "다음 여행 정보에 맞는 매력적인 코스 설명을 한국어로 작성해주세요:\n" +
-                "- 목적지: %s\n" +
-                "- 테마: %s\n" +
-                "- 여행 일수: %d일\n" +
-                "- 교통수단: %s\n" +
-                "- 여행 스타일: %s\n\n" +
-                "설명은 2-3문장으로 간결하게 작성하고, 여행의 매력점을 강조해주세요.",
-                request.getDestination(),
-                request.getTheme(),
-                request.getDays(),
-                request.getTransportation() != null ? request.getTransportation() : "미정",
-                request.getTravelStyle() != null ? request.getTravelStyle() : "일반"
-            );
-            
-            String llmResponse = geminiApiClient.generateContent(prompt, 0.8, 300)
-                    .map(geminiApiClient::extractTextFromResponse)
-                    .block();
-            
-            if (llmResponse != null && !llmResponse.trim().isEmpty()) {
-                return llmResponse.trim();
-            }
-        } catch (Exception e) {
-            log.warn("Failed to generate course description using LLM: {}", e.getMessage());
-        }
-        
-        // 기본 설명 반환
-        return request.getDestination() + "의 " + request.getTheme() + " 테마로 " + 
-               request.getDays() + "일간 즐길 수 있는 관광 코스입니다. " +
-               "다양한 명소들을 방문하며 현지의 문화와 자연을 체험할 수 있습니다.";
-    }
-    
-    public List<String> generateTravelTips(TourCourseRequestDto request) {
-        log.info("Generating travel tips for destination: {}", request.getDestination());
-        
-        try {
-            String prompt = createTravelTipsPrompt(request);
-            String llmResponse = geminiApiClient.generateContent(prompt, 0.8, 500)
-                    .map(geminiApiClient::extractTextFromResponse)
-                    .block();
-            
-            if (llmResponse != null && !llmResponse.trim().isEmpty()) {
-                return parseTravelTips(llmResponse);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to generate travel tips using LLM: {}", e.getMessage());
-        }
-        
-        // 기본 팁 반환
-        List<String> tips = new ArrayList<>();
-        tips.add("교통카드 준비");
-        tips.add("편안한 신발 착용");
-        tips.add("카메라 준비");
-        
-        if ("자연".equals(request.getTheme())) {
-            tips.add("야외 활동용 의류 준비");
-            tips.add("충분한 물 준비");
-        } else if ("문화".equals(request.getTheme())) {
-            tips.add("문화재 관람 예절 준수");
-            tips.add("사전 예약 확인");
-        }
-        
-        return tips;
-    }
-    
-    private String createCourseGenerationPromptWithRAG(TourCourseRequestDto request, List<TouristSpotDto> availableSpots, String touristContext) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("당신은 전문 여행 코스 설계사입니다. 다음 정보를 바탕으로 상세한 관광 코스를 생성해주세요.\n\n");
-        
-        // RAG 컨텍스트 추가
-        if (touristContext != null && !touristContext.trim().isEmpty()) {
-            prompt.append("=== 최신 관광지 정보 (RAG 기반) ===\n");
-            prompt.append(touristContext).append("\n\n");
-        }
-        
-        prompt.append("여행 정보:\n");
-        prompt.append("- 목적지: ").append(request.getDestination()).append("\n");
-        prompt.append("- 여행 일수: ").append(request.getDays()).append("일\n");
-        prompt.append("- 테마: ").append(request.getTheme()).append("\n");
-        if (request.getBudget() != null) prompt.append("- 예산: ").append(request.getBudget()).append("\n");
-        if (request.getTransportation() != null) prompt.append("- 교통수단: ").append(request.getTransportation()).append("\n");
-        if (request.getInterests() != null) prompt.append("- 관심사: ").append(String.join(", ", request.getInterests())).append("\n");
-        if (request.getTravelStyle() != null) prompt.append("- 여행 스타일: ").append(request.getTravelStyle()).append("\n");
-        
-        prompt.append("\n사용 가능한 관광지:\n");
-        for (TouristSpotDto spot : availableSpots) {
-            prompt.append("- ").append(spot.getName()).append(": ").append(spot.getDescription())
-                  .append(" (소요시간: ").append(spot.getEstimatedDuration()).append("분, 카테고리: ").append(spot.getCategory()).append(")\n");
-        }
-        
-        prompt.append("\n요구사항:\n");
-        prompt.append("1. 위의 최신 관광지 정보를 우선적으로 참고하여 코스를 설계하세요.\n");
-        prompt.append("2. 연관 관광지 정보를 활용하여 효율적인 코스를 구성하세요.\n");
-        prompt.append("3. 각 일차별로 2-3개 관광지를 배정하세요.\n");
-        prompt.append("4. 관광지 간 이동 시간을 고려하세요.\n");
-        prompt.append("5. 식사 시간과 휴식 시간을 포함하세요.\n");
-        prompt.append("6. 예산과 교통수단을 고려하세요.\n");
-        prompt.append("7. JSON 형식으로 응답하되, 다음 구조를 따르세요:\n");
-        prompt.append("{\n");
-        prompt.append("  \"title\": \"코스 제목\",\n");
-        prompt.append("  \"summary\": \"코스 요약\",\n");
-        prompt.append("  \"dayPlans\": [\n");
-        prompt.append("    {\n");
-        prompt.append("      \"dayNumber\": 1,\n");
-        prompt.append("      \"dayTitle\": \"1일차 제목\",\n");
-        prompt.append("      \"overview\": \"1일차 개요\",\n");
-        prompt.append("      \"spots\": [\n");
-        prompt.append("        {\n");
-        prompt.append("          \"spotName\": \"관광지명\",\n");
-        prompt.append("          \"visitTime\": \"방문시간\",\n");
-        prompt.append("          \"duration\": 120,\n");
-        prompt.append("          \"activity\": \"활동내용\",\n");
-        prompt.append("          \"notes\": \"참고사항\"\n");
-        prompt.append("        }\n");
-        prompt.append("      ],\n");
-        prompt.append("      \"transportation\": \"교통수단\",\n");
-        prompt.append("      \"meals\": \"식사 정보\",\n");
-        prompt.append("      \"estimatedCost\": \"예상 비용\",\n");
-        prompt.append("      \"tips\": \"일차별 팁\"\n");
-        prompt.append("    }\n");
-        prompt.append("  ],\n");
-        prompt.append("  \"estimatedBudget\": \"총 예상 비용\",\n");
-        prompt.append("  \"transportationInfo\": \"교통 정보\",\n");
-        prompt.append("  \"accommodationInfo\": \"숙박 정보\",\n");
-        prompt.append("  \"tips\": [\"전체 팁1\", \"전체 팁2\"],\n");
-        prompt.append("  \"weatherInfo\": \"날씨 정보\"\n");
-        prompt.append("}\n");
-        
-        return prompt.toString();
-    }
-    
-    private String createTravelTipsPrompt(TourCourseRequestDto request) {
-        return String.format(
-            "다음 여행 정보에 맞는 실용적인 여행 팁 5개를 한국어로 제공해주세요:\n" +
-            "- 목적지: %s\n" +
-            "- 테마: %s\n" +
-            "- 여행 일수: %d일\n" +
-            "- 교통수단: %s\n" +
-            "- 여행 스타일: %s\n\n" +
-            "각 팁은 한 줄로 간결하게 작성하고, 번호를 매겨주세요.",
-            request.getDestination(),
-            request.getTheme(),
-            request.getDays(),
-            request.getTransportation() != null ? request.getTransportation() : "미정",
-            request.getTravelStyle() != null ? request.getTravelStyle() : "일반"
-        );
-    }
-    
-    private TourCourseResponseDto parseLLMResponse(String llmResponse, TourCourseRequestDto request, String courseId) {
-        try {
-            // JSON 파싱 시도 (실제로는 더 복잡한 파싱 로직이 필요)
-            log.info("Parsing LLM response for course generation");
-            
-            // 현재는 기본 구조만 반환하고, 실제 파싱은 향후 개선
-            return createSampleCourseResponse(request, new ArrayList<>(), courseId);
+
+            Map<String, String> variables = new HashMap<>();
+            variables.put("query", query);
+            variables.put("context", context);
+
+            return geminiApiClient.generateTextStreamWithVariables(prompt, variables);
             
         } catch (Exception e) {
-            log.error("Failed to parse LLM response: {}", e.getMessage());
-            throw new RuntimeException("LLM response parsing failed", e);
+            log.error("LLM 서비스 오류", e);
+            return Flux.error(e);
         }
     }
-    
-    private List<String> parseTravelTips(String llmResponse) {
-        List<String> tips = new ArrayList<>();
-        
-        try {
-            // 간단한 파싱 (실제로는 더 정교한 파싱이 필요)
-            String[] lines = llmResponse.split("\n");
-            for (String line : lines) {
-                line = line.trim();
-                if (!line.isEmpty() && (line.matches("\\d+\\..*") || line.matches("^[•·-].*"))) {
-                    // 번호나 불릿 제거
-                    String tip = line.replaceAll("^\\d+\\.\\s*", "").replaceAll("^[•·-]\\s*", "");
-                    if (!tip.isEmpty()) {
-                        tips.add(tip);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse travel tips: {}", e.getMessage());
+
+    /**
+     * 관광지 정보를 컨텍스트 텍스트로 변환
+     * @param spots 관광지 목록
+     * @return 컨텍스트 텍스트
+     */
+    private String formatTouristSpotsContext(List<TouristSpotDto> spots) {
+        if (spots == null || spots.isEmpty()) {
+            return "관광지 정보가 없습니다.";
         }
-        
-        // 파싱 실패 시 기본 팁 반환
-        if (tips.isEmpty()) {
-            tips.add("교통카드 준비");
-            tips.add("편안한 신발 착용");
-            tips.add("카메라 준비");
-            tips.add("충분한 현금 준비");
-            tips.add("응급약품 준비");
-        }
-        
-        return tips;
+
+        return spots.stream()
+                .map(spot -> String.format(
+                    "관광지명: %s\n" +
+                    "지역: %s %s\n" +
+                    "시군구: %s %s\n" +
+                    "대분류: %s\n" +
+                    "중분류: %s\n" +
+                    "소분류: %s\n" +
+                    "순위: %s\n" +
+                    "기준년월: %s\n" +
+                    "---",
+                    spot.getHubTatsNm(),
+                    spot.getAreaNm(), spot.getAreaCd(),
+                    spot.getSignguNm(), spot.getSignguCd(),
+                    spot.getHubCtgryLclsNm(),
+                    spot.getHubCtgryMclsNm(),
+                    spot.getHubCtgrySclsNm() != null ? spot.getHubCtgrySclsNm() : "정보없음",
+                    spot.getHubRank(),
+                    spot.getBaseYm()
+                ))
+                .collect(Collectors.joining("\n"));
     }
-} 
+
+    /**
+     * 연관 관광지 정보를 컨텍스트 텍스트로 변환
+     * @param spots 연관 관광지 목록
+     * @return 컨텍스트 텍스트
+     */
+    private String formatRelatedTouristSpotsContext(List<RelatedTouristSpotDto> spots) {
+        if (spots == null || spots.isEmpty()) {
+            return "연관 관광지 정보가 없습니다.";
+        }
+
+        return spots.stream()
+                .map(spot -> String.format(
+                    "기준 관광지: %s (%s)\n" +
+                    "기준 지역: %s %s\n" +
+                    "기준 시군구: %s %s\n" +
+                    "연관 관광지: %s (%s)\n" +
+                    "연관 지역: %s %s\n" +
+                    "연관 시군구: %s %s\n" +
+                    "연관 대분류: %s\n" +
+                    "연관 중분류: %s\n" +
+                    "연관 소분류: %s\n" +
+                    "연관 순위: %s\n" +
+                    "기준년월: %s\n" +
+                    "---",
+                    spot.getTAtsNm(), spot.getTAtsCd(),
+                    spot.getAreaNm(), spot.getAreaCd(),
+                    spot.getSignguNm(), spot.getSignguCd(),
+                    spot.getRlteTatsNm(), spot.getRlteTatsCd(),
+                    spot.getRlteRegnNm(), spot.getRlteRegnCd(),
+                    spot.getRlteSignguNm(), spot.getRlteSignguCd(),
+                    spot.getRlteCtgryLclsNm(),
+                    spot.getRlteCtgryMclsNm(),
+                    spot.getRlteCtgrySclsNm(),
+                    spot.getRlteRank(),
+                    spot.getBaseYm()
+                ))
+                .collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * 사용 가능한 프롬프트 목록 조회
+     * @return 프롬프트 목록
+     */
+    public String[] getAvailablePrompts() {
+        return promptLoader.getAvailablePrompts();
+    }
+}

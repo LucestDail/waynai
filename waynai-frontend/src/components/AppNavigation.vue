@@ -15,12 +15,9 @@
       </div>
       
       <nav class="nav">
-        <router-link to="/" class="nav-link">홈</router-link>
-        <router-link to="/about" class="nav-link">소개</router-link>
-        
         <!-- 다크모드 토글 -->
         <button @click="toggleTheme" class="theme-toggle" :title="isDarkMode ? '라이트 모드로 변경' : '다크 모드로 변경'">
-          <span v-if="isDarkMode" class="theme-icon">☀️</span>
+          <span v-if="isDarkMode" class="theme-icon">🌅</span>
           <span v-else class="theme-icon">🌙</span>
         </button>
       </nav>
@@ -34,8 +31,12 @@
     
     <!-- 모바일 메뉴 -->
     <div v-if="isMobileMenuOpen" class="mobile-menu">
-      <router-link to="/" class="mobile-nav-link" @click="closeMobileMenu">홈</router-link>
-      <router-link to="/about" class="mobile-nav-link" @click="closeMobileMenu">소개</router-link>
+      <!-- 모바일에서는 다크모드 토글만 표시 -->
+      <button @click="toggleThemeAndClose" class="mobile-theme-toggle">
+        <span v-if="isDarkMode" class="theme-icon">🌅</span>
+        <span v-else class="theme-icon">🌙</span>
+        <span class="theme-text">{{ isDarkMode ? '라이트 모드' : '다크 모드' }}</span>
+      </button>
     </div>
   </header>
 </template>
@@ -55,6 +56,11 @@ const toggleMobileMenu = () => {
 
 const closeMobileMenu = () => {
   isMobileMenuOpen.value = false;
+};
+
+const toggleThemeAndClose = () => {
+  toggleTheme();
+  closeMobileMenu();
 };
 </script>
 
@@ -266,6 +272,41 @@ const closeMobileMenu = () => {
 
 .mobile-nav-link:last-child {
   border-bottom: none;
+}
+
+.mobile-theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  color: #2c3e50;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: color 0.3s ease;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobile-theme-toggle:hover {
+  color: #667eea;
+}
+
+.theme-text {
+  font-size: 0.9rem;
+}
+
+/* 다크모드에서 모바일 테마 토글 */
+.dark .mobile-theme-toggle {
+  color: #e2e8f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .mobile-theme-toggle:hover {
+  color: #60a5fa;
 }
 
 /* 모바일 대응 */

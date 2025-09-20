@@ -46,13 +46,6 @@
         </div>
       </div>
 
-      <!-- 디버그 정보 (개발 모드에서만 표시) -->
-      <div v-if="showDebugInfo" class="debug-info">
-        <details>
-          <summary>디버그 정보</summary>
-          <pre>{{ debugInfo }}</pre>
-        </details>
-      </div>
     </div>
 
     <!-- 진행률 표시 -->
@@ -79,10 +72,11 @@ const isCompleted = computed(() => {
 const progressPercentage = computed(() => {
   if (isCompleted.value) return 100;
   
+  // 시간 기반 프로그레스 계산
   const stepProgress: Record<string, number> = {
-    'intent_analysis': 0,
-    'knowledge_search': 33,
-    'course_generation': 66
+    'intent_analysis': 33,
+    'knowledge_search': 66,
+    'course_generation': 90
   };
   
   const currentStep = state.currentStep;
@@ -90,7 +84,8 @@ const progressPercentage = computed(() => {
     return stepProgress[currentStep];
   }
   
-  return 0;
+  // 기본 진행률 (단계가 설정되지 않은 경우)
+  return 10;
 });
 
 const isStepActive = (step: string) => {
@@ -127,21 +122,6 @@ const getStatusText = () => {
   return statusTexts[state.currentStatus] || state.currentStatus || '대기 중';
 };
 
-// 디버그 정보 (개발 모드에서만 표시)
-const showDebugInfo = computed(() => {
-  return import.meta.env.DEV;
-});
-
-const debugInfo = computed(() => {
-  return JSON.stringify({
-    isSearching: state.isSearching,
-    currentStatus: state.currentStatus,
-    currentStep: state.currentStep,
-    progress: state.progress,
-    hasResult: !!state.result,
-    hasError: !!state.error
-  }, null, 2);
-});
 </script>
 
 <style scoped>
@@ -160,7 +140,7 @@ const debugInfo = computed(() => {
 }
 
 .progress-title {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 600;
   color: #2c3e50;
   margin: 0 0 0.5rem 0;
@@ -299,31 +279,6 @@ const debugInfo = computed(() => {
   font-weight: 500;
 }
 
-/* 디버그 정보 */
-.debug-info {
-  margin-top: 1rem;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e1e8ed;
-}
-
-.debug-info summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: #3498db;
-  margin-bottom: 0.5rem;
-}
-
-.debug-info pre {
-  margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: #2c3e50;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
 
 /* 진행률 바 */
 .progress-bar-container {
@@ -401,5 +356,74 @@ const debugInfo = computed(() => {
   .step-label {
     font-size: 0.8rem;
   }
+}
+
+/* 다크모드 스타일 */
+.dark .progress-container {
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.dark .progress-title {
+  color: #f8fafc;
+}
+
+.dark .progress-status {
+  color: #60a5fa;
+}
+
+.dark .step-dot {
+  background-color: #374151;
+}
+
+.dark .step-dot.active {
+  background-color: #60a5fa;
+}
+
+.dark .step-line {
+  background-color: #374151;
+}
+
+.dark .step-line.active {
+  background-color: #60a5fa;
+}
+
+.dark .step-label {
+  color: #9ca3af;
+}
+
+.dark .step-label.active {
+  color: #60a5fa;
+}
+
+.dark .message-text {
+  color: #e5e7eb;
+}
+
+.dark .current-task {
+  background-color: #1e293b;
+  border-left-color: #60a5fa;
+}
+
+.dark .task-text {
+  color: #f1f5f9;
+}
+
+.dark .loading-spinner {
+  border-color: #374151;
+  border-top-color: #60a5fa;
+}
+
+.dark .progress-bar {
+  background-color: #374151;
+}
+
+.dark .progress-fill {
+  background: linear-gradient(90deg, #60a5fa, #93c5fd);
+}
+
+.dark .progress-text {
+  color: #9ca3af;
 }
 </style> 

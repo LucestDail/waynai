@@ -147,8 +147,8 @@
 
           <!-- 검색 버튼 -->
           <div class="form-actions">
-            <button @click="generateTravelPlan" class="submit-button" :disabled="!isFormValid">
-              여행 계획 생성하기
+            <button @click="generateTravelPlan" class="submit-button" :disabled="!isFormValid || streamState.isStreaming || isGenerating">
+              {{ (streamState.isStreaming || isGenerating) ? '생성 중...' : '여행 계획 생성하기' }}
             </button>
           </div>
         </div>
@@ -159,23 +159,43 @@
           <p class="loading-text">AI가 여행 계획을 생성하고 있습니다...</p>
         </div>
         
-        <!-- 결과 표시 -->
-        <transition name="fade">
-          <SearchResult v-if="shouldShowResult" />
-        </transition>
+        <!-- 스트림 결과 표시 -->
+        <div v-if="streamState.isStreaming || streamState.isComplete" class="stream-result">
+          <div class="stream-header">
+            <h3 class="stream-title">AI 여행 계획 생성 중...</h3>
+            <div v-if="streamState.isComplete" class="completion-badge">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+              </svg>
+              완료
+            </div>
+          </div>
+          
+          <div v-if="streamState.error" class="error-message">
+            <p>{{ streamState.error }}</p>
+            <button @click="retryGeneration" class="retry-button">다시 시도</button>
+          </div>
+          
+          <div v-else class="stream-content">
+            <div class="markdown-content" v-html="formatMarkdown(streamState.currentData)"></div>
+            <div v-if="streamState.isStreaming" class="typing-indicator">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import SearchInput from '@/components/SearchInput.vue';
-import SearchResult from '@/components/SearchResult.vue';
-import { useSearchStore } from '@/stores/search';
-import { computed, ref } from 'vue';
+import { useStreamStore } from '@/stores/stream';
+import { computed, ref, watch, nextTick } from 'vue';
 
-const searchStore = useSearchStore();
-const searchState = searchStore.state;
+const streamStore = useStreamStore();
+const streamState = streamStore.state;
 
 // 폼 데이터
 const selectedArea = ref('');
@@ -186,6 +206,9 @@ const selectedBudget = ref('');
 const selectedCompanion = ref('');
 const transportation = ref([]);
 const keywords = ref('');
+
+// 중복 요청 방지를 위한 플래그
+const isGenerating = ref(false);
 
 // 시군구 옵션
 const sigunguOptions = ref<string[]>([]);
@@ -220,18 +243,94 @@ const updateSigunguOptions = () => {
   selectedSigungu.value = '';
 };
 
-const generateTravelPlan = () => {
-  if (!isFormValid.value) return;
+const generateTravelPlan = async () => {
+  // 중복 호출 방지 - 전역 상태 확인
+  if (streamState.isStreaming) {
+    console.log('이미 스트림이 진행 중입니다. 중복 호출을 차단합니다.');
+    return;
+  }
   
-  // 키워드와 테마를 합쳐서 요청
+  if (!isFormValid.value) {
+    console.log('폼이 유효하지 않습니다.');
+    return;
+  }
+  
+  try {
+    isGenerating.value = true;
+    
+    // 키워드와 테마를 합쳐서 요청
+    const searchQuery = `${selectedArea.value} ${selectedSigungu.value} ${keywords.value} ${selectedTheme.value}`.trim();
+    
+    console.log('여행 계획 생성 요청:', searchQuery);
+    
+    // 스트림 스토어에 요청
+    await streamStore.startTravelPlanStream(searchQuery);
+  } catch (error) {
+    console.error('여행 계획 생성 실패:', error);
+    isGenerating.value = false;
+  }
+  // isGenerating은 스트림 완료 시에만 해제됨
+};
+
+const retryGeneration = () => {
+  if (!isFormValid.value || streamState.isStreaming) return;
+  
+  // 이전 스트림 정리
+  streamStore.clearStream();
+  
   const searchQuery = `${selectedArea.value} ${selectedSigungu.value} ${keywords.value} ${selectedTheme.value}`.trim();
+  streamStore.startTravelPlanStream(searchQuery);
+};
+
+const formatMarkdown = (text: string): string => {
+  if (!text) return '';
   
-  // 검색 스토어에 요청
-  searchStore.startSearch({
-    query: searchQuery,
-    destination: `${selectedArea.value} ${selectedSigungu.value}`,
-    days: parseInt(selectedDuration.value)
-  });
+  // 마크다운을 HTML로 변환
+  let html = text
+    // 제목 처리
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    // 강조 처리
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    // 리스트 처리
+    .replace(/^- (.*$)/gim, '<li>$1</li>')
+    .replace(/^(\d+)\. (.*$)/gim, '<li>$1. $2</li>')
+    // 구분선 처리
+    .replace(/^---$/gim, '<hr>')
+    // 줄바꿈 처리
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+  
+  // 문단 래핑
+  if (!html.startsWith('<')) {
+    html = '<p>' + html + '</p>';
+  }
+  
+  // 리스트 그룹화
+  html = html.replace(/(<li>.*?<\/li>)/g, '<ul>$1</ul>');
+  html = html.replace(/<\/ul><ul>/g, '');
+  
+  // 이모지 색상 추가
+  html = html
+    .replace(/📅/g, '<span style="color: #3498db;">📅</span>')
+    .replace(/💰/g, '<span style="color: #27ae60;">💰</span>')
+    .replace(/🎯/g, '<span style="color: #e74c3c;">🎯</span>')
+    .replace(/🏛️/g, '<span style="color: #8e44ad;">🏛️</span>')
+    .replace(/📍/g, '<span style="color: #e67e22;">📍</span>')
+    .replace(/🍜/g, '<span style="color: #f39c12;">🍜</span>')
+    .replace(/🚇/g, '<span style="color: #16a085;">🚇</span>')
+    .replace(/💡/g, '<span style="color: #f1c40f;">💡</span>')
+    .replace(/🗺️/g, '<span style="color: #2c3e50;">🗺️</span>')
+    .replace(/📋/g, '<span style="color: #34495e;">📋</span>')
+    .replace(/📝/g, '<span style="color: #7f8c8d;">📝</span>')
+    .replace(/🚗/g, '<span style="color: #e67e22;">🚗</span>')
+    .replace(/🏨/g, '<span style="color: #9b59b6;">🏨</span>')
+    .replace(/✈️/g, '<span style="color: #3498db;">✈️</span>');
+  
+  return html;
 };
 
 const isFormValid = computed(() => {
@@ -240,14 +339,32 @@ const isFormValid = computed(() => {
 
 
 
-const shouldShowResult = computed(() => {
-  return (searchState.result !== null && searchState.result !== undefined) || 
-         searchState.error || 
-         searchState.currentStatus === 'completed';
+const shouldShowLoading = computed(() => {
+  return streamState.isStreaming && !streamState.currentData;
 });
 
-const shouldShowLoading = computed(() => {
-  return searchState.isSearching;
+// 스트림 데이터가 업데이트될 때 자동 스크롤
+watch(() => streamState.currentData, async () => {
+  if (streamState.isStreaming) {
+    await nextTick();
+    const streamContent = document.querySelector('.stream-content');
+    if (streamContent) {
+      streamContent.scrollTop = streamContent.scrollHeight;
+    }
+  }
+}, { flush: 'post' });
+
+// 스트림 완료/오류 시 isGenerating 해제
+watch(() => streamState.isComplete, (isComplete) => {
+  if (isComplete) {
+    isGenerating.value = false;
+  }
+});
+
+watch(() => streamState.error, (error) => {
+  if (error) {
+    isGenerating.value = false;
+  }
 });
 </script>
 
@@ -486,6 +603,236 @@ const shouldShowLoading = computed(() => {
 
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
+}
+
+/* 스트림 결과 스타일 */
+.stream-result {
+  margin-top: 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.dark .stream-result {
+  background: #1e293b;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.stream-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.dark .stream-header {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.stream-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.completion-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.error-message {
+  padding: 2rem;
+  text-align: center;
+  color: #e74c3c;
+}
+
+.dark .error-message {
+  color: #f87171;
+}
+
+.retry-button {
+  margin-top: 1rem;
+  padding: 0.75rem 2rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.retry-button:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+}
+
+.stream-content {
+  padding: 2rem;
+}
+
+.markdown-content {
+  line-height: 1.8;
+  color: #2c3e50;
+}
+
+.dark .markdown-content {
+  color: #f1f5f9;
+}
+
+.markdown-content h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 2rem 0 1rem 0;
+  border-bottom: 3px solid #3498db;
+  padding-bottom: 0.5rem;
+}
+
+.dark .markdown-content h1 {
+  color: #f1f5f9;
+  border-bottom-color: #60a5fa;
+}
+
+.markdown-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #34495e;
+  margin: 1.5rem 0 1rem 0;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 0.3rem;
+}
+
+.dark .markdown-content h2 {
+  color: #e2e8f0;
+  border-bottom-color: #60a5fa;
+}
+
+.markdown-content h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #34495e;
+  margin: 1.2rem 0 0.8rem 0;
+}
+
+.dark .markdown-content h3 {
+  color: #e2e8f0;
+}
+
+.markdown-content p {
+  margin: 1rem 0;
+  line-height: 1.8;
+}
+
+.markdown-content ul {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+.markdown-content li {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.dark .markdown-content strong {
+  color: #f1f5f9;
+}
+
+.markdown-content hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, #3498db, #9b59b6);
+  margin: 2rem 0;
+  border-radius: 1px;
+}
+
+.markdown-content code {
+  background-color: #f8f9fa;
+  color: #e74c3c;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+}
+
+.dark .markdown-content code {
+  background-color: #374151;
+  color: #f87171;
+}
+
+/* 타이핑 인디케이터 */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e1e8ed;
+}
+
+.dark .typing-indicator {
+  background-color: #374151;
+  border-color: #475569;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #3498db;
+  border-radius: 50%;
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0s;
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 스트림 콘텐츠 스크롤 */
+.stream-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* 스트림 진행 중 자동 스크롤 */
+.stream-content:has(.typing-indicator) {
+  scroll-behavior: smooth;
 }
 
 /* 모바일 대응 */

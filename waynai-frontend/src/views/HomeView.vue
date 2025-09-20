@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import SearchInput from '@/components/SearchInput.vue';
 import SearchResult from '@/components/SearchResult.vue';
+import SearchProgress from '@/components/SearchProgress.vue';
+import StreamResult from '@/components/StreamResult.vue';
 import { useSearchStore } from '@/stores/search';
+import { useStreamStore } from '@/stores/stream';
 import { computed, ref } from 'vue';
 
 const searchStore = useSearchStore();
+const streamStore = useStreamStore();
 const searchState = searchStore.state;
+const streamState = streamStore.state;
 const searchQuery = ref('');
+const isSearching = ref(false);
 
 const shouldShowResult = computed(() => {
   return (searchState.result !== null && searchState.result !== undefined) || 
@@ -15,81 +21,213 @@ const shouldShowResult = computed(() => {
 });
 
 const shouldShowLoading = computed(() => {
-  return searchState.isSearching;
+  return isSearching.value;
 });
 
-const handleSearch = () => {
-  if (searchQuery.value.trim()) {
-    // 검색 로직 구현
-    console.log('검색:', searchQuery.value);
+const shouldShowStream = computed(() => {
+  // 데이터가 있거나 에러가 있으면 결과 컴포넌트 표시
+  const hasData = streamState.currentData && streamState.currentData.trim().length > 0;
+  const hasError = !!streamState.error;
+  
+  console.log('결과 표시 여부:', {
+    hasData,
+    hasError,
+    currentDataLength: streamState.currentData?.length || 0,
+    willShow: hasData || hasError
+  });
+  
+  return hasData || hasError;
+});
+
+const handleSearch = async () => {
+  if (!searchQuery.value.trim()) {
+    return;
+  }
+  
+  // 중복 호출 방지
+  if (isSearching.value) {
+    console.log('이미 검색 중입니다. 중복 호출을 차단합니다.');
+    return;
+  }
+  
+  console.log('여행 계획 생성 시작:', searchQuery.value);
+  isSearching.value = true;
+  
+  // 검색 시작 시 스크롤 다운 처리
+  setTimeout(() => {
+    const resultSection = document.querySelector('.result-section');
+    if (resultSection) {
+      resultSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, 100);
+  
+  // searchStore의 isSearching 상태도 함께 설정
+  searchStore.state.isSearching = true;
+  
+  // 기존 검색 결과 클리어
+  searchStore.clearSearch();
+  streamStore.clearStream();
+  
+  try {
+    // 30초 프로그레스바 시뮬레이션 시작
+    let progressValue = 0;
+    let currentStepIndex = 0;
+    
+    const steps = [
+      { status: 'analyzing', step: 'intent_analysis', message: '사용자 입력을 분석하는 중...' },
+      { status: 'searching', step: 'knowledge_search', message: '관광지 정보를 검색하고 수집하는 중...' },
+      { status: 'generating', step: 'course_generation', message: 'AI가 여행 계획을 생성하는 중...' }
+    ];
+    
+    // 프로그레스바 시뮬레이션 함수
+    const simulateProgress = () => {
+      const progressInterval = setInterval(() => {
+        progressValue += 1;
+        
+        // 단계별 진행 (10초마다 단계 변경)
+        if (progressValue % 10 === 0 && currentStepIndex < steps.length - 1) {
+          currentStepIndex++;
+          const currentStep = steps[currentStepIndex];
+          searchStore.state.currentStatus = currentStep.status;
+          searchStore.state.currentStep = currentStep.step;
+          searchStore.state.progress = steps.slice(0, currentStepIndex + 1).map(s => s.message);
+        }
+        
+        // 30초 후 자동으로 100%로 설정
+        if (progressValue >= 30) {
+          clearInterval(progressInterval);
+        }
+      }, 1000);
+      
+      return progressInterval;
+    };
+    
+    // 프로그레스바 시뮬레이션 시작
+    const progressInterval = simulateProgress();
+    
+    // HTTP 요청과 프로그레스바 시뮬레이션을 병렬로 실행
+    console.log('여행 계획 요청 시작:', searchQuery.value);
+    const response = await fetch(`http://localhost:8080/api/travel/plan?query=${encodeURIComponent(searchQuery.value)}`);
+    
+    // 프로그레스바 시뮬레이션 중단
+    clearInterval(progressInterval);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP 오류! 상태: ${response.status}`);
+    }
+    
+    const data = await response.text();
+    console.log('서버 응답 받음, 데이터 길이:', data.length);
+    
+    // 완료 상태로 즉시 설정
+    searchStore.state.currentStatus = 'completed';
+    searchStore.state.currentStep = 'course_generation';
+    searchStore.state.progress = [
+      '사용자 입력을 분석하는 중...',
+      '관광지 정보를 검색하고 수집하는 중...',
+      'AI가 여행 계획을 생성하는 중...',
+      '여행 계획 생성 완료!'
+    ];
+    
+    // 1초 지연 후 프로그레스바 페이드아웃
+    setTimeout(() => {
+      // 프로그레스바 페이드아웃 효과
+      const progressElement = document.querySelector('.progress-container') as HTMLElement;
+      if (progressElement) {
+        progressElement.style.transition = 'opacity 0.8s ease-out';
+        progressElement.style.opacity = '0';
+        
+        // 페이드아웃 완료 후 데이터 표시
+        setTimeout(() => {
+          if (data && data.trim().length > 0) {
+            streamStore.setData(data);
+            console.log('데이터 설정 완료, 화면에 표시됨');
+          } else {
+            streamStore.setError('서버에서 빈 응답을 받았습니다.');
+          }
+        }, 800); // 페이드아웃 완료 후 0.8초 대기
+      } else {
+        // 프로그레스바가 없는 경우 바로 데이터 표시
+        if (data && data.trim().length > 0) {
+          streamStore.setData(data);
+          console.log('데이터 설정 완료, 화면에 표시됨');
+        } else {
+          streamStore.setError('서버에서 빈 응답을 받았습니다.');
+        }
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error('여행 계획 생성 실패:', error);
+    
+    // 에러 상태 업데이트
+    searchStore.state.currentStatus = 'error';
+    searchStore.state.progress = [
+      '사용자 입력을 분석하는 중...',
+      'AI가 여행 계획을 생성하는 중...',
+      '오류가 발생했습니다.'
+    ];
+    
+    streamStore.setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+  } finally {
+    isSearching.value = false;
+    searchStore.state.isSearching = false;
   }
 };
 </script>
 
 <template>
   <div class="home">
+    <!-- 메인 히어로 섹션 -->
     <div class="hero-section">
       <div class="hero-content">
         <h1 class="hero-title">당신의 여행 길을<br>함께 찾아드립니다</h1>
         <p class="hero-subtitle">
           AI가 이끄는 당신만의 특별한 여행 경험
         </p>
-      </div>
-      <div class="hero-visual">
-        <div class="floating-card card-1">
-          <div class="card-icon">📍</div>
-          <div class="card-content">
-            <h4>경복궁</h4>
-            <p>조선왕조의 정궁</p>
-          </div>
-        </div>
-        <div class="floating-card card-2">
-          <div class="card-icon">🍜</div>
-          <div class="card-content">
-            <h4>명동칼국수</h4>
-            <p>현지 맛집 추천</p>
-          </div>
-        </div>
-        <div class="floating-card card-3">
-          <div class="card-icon">🚇</div>
-          <div class="card-content">
-            <h4>지하철 3호선</h4>
-            <p>최적 경로 안내</p>
+        
+        <!-- 검색 섹션을 히어로 섹션 안으로 이동 -->
+        <div class="search-container">
+          <h2 class="search-title">어디로 가고 싶으신가요?</h2>
+          <div class="search-input-group">
+            <input
+              v-model="searchQuery"
+              @keyup.enter="handleSearch"
+              type="text"
+              placeholder="서울 종로구"
+              class="search-input"
+              :disabled="isSearching"
+            />
+            <button @click="handleSearch" class="search-button" :disabled="isSearching">
+              <span v-if="isSearching" class="loading-spinner-small"></span>
+              <span v-else>검색</span>
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="search-section">
-      <div class="search-container">
-        <div class="search-header">
-          <h2 class="search-title">어디로 가고 싶으신가요?</h2>
-          <p class="search-description">
-            키워드나 여행 계획을 자유롭게 입력해보세요. AI가 당신만의 특별한 여행을 설계해드립니다.
-          </p>
-        </div>
-        <div class="home-search">
-          <input
-            v-model="searchQuery"
-            @keyup.enter="handleSearch"
-            type="text"
-            placeholder="여행하고 싶은 곳이나 키워드를 입력하세요..."
-            class="home-search-input"
-          />
-          <button @click="handleSearch" class="home-search-button">
-            검색
-          </button>
-        </div>
-        
-        <!-- 로딩 상태 -->
-        <div v-if="shouldShowLoading" class="loading-container">
-          <div class="loading-spinner"></div>
-          <p class="loading-text">AI가 여행 정보를 생성하고 있습니다...</p>
-        </div>
-        
-        <!-- 결과 표시 -->
-        <transition name="fade">
-          <SearchResult v-if="shouldShowResult" />
+    <!-- 결과 표시 섹션 -->
+    <div class="result-section">
+      <div class="result-container">
+        <transition name="fade" mode="out-in">
+          <SearchProgress v-if="searchState.isSearching" key="progress" />
+          
+          <!-- 스트림 결과 표시 -->
+          <StreamResult v-else-if="shouldShowStream" key="result" />
+          
+          <!-- 로딩 상태 (백업용) -->
+          <div v-else-if="shouldShowLoading" key="loading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">AI가 여행 정보를 생성하고 있습니다...</p>
+          </div>
+          
+          <!-- 초기 상태 -->
+          <div v-else key="initial" class="initial-state">
+            <div class="initial-icon">✈️</div>
+            <h3>여행 계획을 시작해보세요</h3>
+            <p>위에서 여행하고 싶은 곳을 입력하고 검색 버튼을 눌러보세요.</p>
+          </div>
         </transition>
       </div>
     </div>
@@ -112,23 +250,26 @@ const handleSearch = () => {
 
 
 .hero-section {
-  padding: 2rem;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
+  padding: 4rem 2rem;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100vh;
   max-width: 1200px;
   margin: 0 auto;
-  min-height: 80vh;
+  overflow: hidden;
 }
 
 .hero-content {
   color: white;
+  max-width: 800px;
+  width: 100%;
 }
 
-
 .hero-title {
-  font-size: 3.5rem;
+  font-size: 4rem;
   font-weight: 700;
   line-height: 1.2;
   margin-bottom: 1.5rem;
@@ -139,140 +280,149 @@ const handleSearch = () => {
 }
 
 .hero-subtitle {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1.6;
-  margin-bottom: 2rem;
+  margin-bottom: 4rem;
   opacity: 0.9;
   color: #e0e7ff;
 }
 
-
-.hero-visual {
-  position: relative;
-  height: 400px;
+.search-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
-.floating-card {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+.search-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 2rem;
+  opacity: 0.95;
+}
+
+.search-input-group {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+}
+
+.search-input {
+  flex: 1;
+  padding: 1.25rem 1.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 1.1rem;
+  outline: none;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  backdrop-filter: blur(10px);
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.search-input:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+}
+
+.search-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.search-button {
+  padding: 1.25rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  animation: float 6s ease-in-out infinite;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.search-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.search-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* 결과 섹션 */
+.result-section {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  margin: 0 auto;
+  max-width: 1200px;
   transition: background 0.3s ease;
 }
 
-/* 다크모드에서 플로팅 카드 */
-.dark .floating-card {
+/* 다크모드에서 결과 섹션 */
+.dark .result-section {
   background: rgba(30, 41, 59, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.card-1 {
-  top: 0;
-  left: 0;
-  animation-delay: 0s;
+.result-container {
+  padding: 2rem;
 }
 
-.card-2 {
-  top: 50%;
-  right: 0;
-  animation-delay: 2s;
-}
-
-.card-3 {
-  bottom: 0;
-  left: 20%;
-  animation-delay: 4s;
-}
-
-.card-icon {
-  font-size: 2rem;
-}
-
-.card-content h4 {
-  margin: 0 0 0.25rem 0;
-  font-weight: 600;
-  color: #1e3c72;
-  transition: color 0.3s ease;
-}
-
-.card-content p {
-  margin: 0;
-  font-size: 0.875rem;
+.initial-state {
+  text-align: center;
+  padding: 4rem 2rem;
   color: #6b7280;
   transition: color 0.3s ease;
 }
 
-/* 다크모드에서 카드 콘텐츠 */
-.dark .card-content h4 {
-  color: #f8fafc;
+.dark .initial-state {
+  color: #9ca3af;
 }
 
-.dark .card-content p {
-  color: #cbd5e1;
+.initial-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.7;
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-}
-
-.search-section {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 4rem 2rem;
-  margin: 2rem auto;
-  border-radius: 24px;
-  max-width: 1200px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  transition: background 0.3s ease;
-}
-
-/* 다크모드에서 검색 섹션 */
-.dark .search-section {
-  background: rgba(30, 41, 59, 0.95);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.search-container {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.search-header {
-  text-align: center;
-  margin-bottom: 3rem;
-}
-
-.search-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #1e3c72;
+.initial-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
   margin-bottom: 1rem;
-  transition: color 0.3s ease;
-}
-
-.search-description {
-  font-size: 1.125rem;
   color: #374151;
-  line-height: 1.6;
   transition: color 0.3s ease;
 }
 
-/* 다크모드에서 검색 제목과 설명 */
-.dark .search-title {
-  color: #f8fafc;
+.dark .initial-state h3 {
+  color: #e2e8f0;
 }
 
-.dark .search-description {
-  color: #e2e8f0;
+.initial-state p {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .loading-container {
@@ -311,69 +461,10 @@ const handleSearch = () => {
   font-size: 1.125rem;
 }
 
-
-.home-search {
-  display: flex;
-  gap: 1rem;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.home-search-input {
-  flex: 1;
-  padding: 1rem 1.5rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  font-size: 1rem;
-  outline: none;
-  transition: border-color 0.3s ease;
-  background: white;
-  color: #374151;
-}
-
-.home-search-input:focus {
-  border-color: #667eea;
-}
-
-/* 다크모드에서 홈 검색 입력 필드 */
-.dark .home-search-input {
-  background: #1e293b;
-  border-color: #475569;
-  color: #f1f5f9;
-}
-
-.dark .home-search-input:focus {
-  border-color: #60a5fa;
-}
-
-.home-search-button {
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-/* 다크모드에서 홈 검색 버튼 */
-.dark .home-search-button {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-}
-
-.home-search-button:hover {
-  transform: translateY(-2px);
-}
-
 @media (max-width: 768px) {
   .hero-section {
-    grid-template-columns: 1fr;
-    gap: 2rem;
     padding: 2rem 1rem;
-    text-align: center;
-    min-height: 60vh;
+    height: 100vh;
   }
 
   .hero-title {
@@ -383,126 +474,84 @@ const handleSearch = () => {
 
   .hero-subtitle {
     font-size: 1.125rem;
-    margin-bottom: 2rem;
-  }
-
-  .hero-visual {
-    height: 250px;
-    margin-top: 2rem;
-  }
-
-  .floating-card {
-    padding: 0.75rem;
-    font-size: 0.875rem;
-  }
-
-  .card-content h4 {
-    font-size: 0.9rem;
-    margin-bottom: 0.25rem;
-  }
-
-  .card-content p {
-    font-size: 0.75rem;
-  }
-
-  .search-section {
-    margin: 1rem;
-    padding: 2rem 1rem;
-    border-radius: 16px;
+    margin-bottom: 3rem;
   }
 
   .search-title {
-    font-size: 1.75rem;
-    margin-bottom: 0.75rem;
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
   }
 
-  .search-description {
-    font-size: 1rem;
-    margin-bottom: 2rem;
-  }
-
-  .home-search {
+  .search-input-group {
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
   }
 
-  .home-search-input {
-    padding: 0.875rem 1rem;
-    font-size: 0.9rem;
+  .search-input {
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
   }
 
-  .home-search-button {
-    padding: 0.875rem 1.5rem;
-    font-size: 0.9rem;
+  .search-button {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    min-width: auto;
+  }
+
+  .result-container {
+    padding: 1rem;
   }
 }
 
 @media (max-width: 480px) {
   .hero-section {
     padding: 1.5rem 0.75rem;
-    min-height: 50vh;
+    height: 100vh;
   }
 
   .hero-title {
-    font-size: 1.75rem;
+    font-size: 2rem;
     line-height: 1.3;
   }
   
   .hero-subtitle {
-    font-size: 0.9rem;
-    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    margin-bottom: 2.5rem;
   }
 
-  .hero-visual {
-    height: 200px;
-    margin-top: 1.5rem;
-  }
-  
-  .search-section {
-    margin: 0.75rem;
-    padding: 1.5rem 0.75rem;
-    border-radius: 12px;
-  }
-  
   .search-title {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+    margin-bottom: 1.25rem;
   }
 
-  .search-description {
+  .search-input {
+    padding: 0.875rem 1rem;
     font-size: 0.9rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .floating-card {
-    padding: 0.5rem;
-    font-size: 0.8rem;
-  }
-  
-  .card-content h4 {
-    font-size: 0.8rem;
-    margin-bottom: 0.2rem;
-  }
-  
-  .card-content p {
-    font-size: 0.7rem;
   }
 
-  .home-search-input {
-    padding: 0.75rem 0.875rem;
-    font-size: 0.85rem;
+  .search-button {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.9rem;
   }
 
-  .home-search-button {
-    padding: 0.75rem 1.25rem;
-    font-size: 0.85rem;
+  .result-container {
+    padding: 0.75rem;
   }
 }
 
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.5s;
+  transition: all 0.8s ease-in-out;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from {
   opacity: 0;
+  transform: translateY(20px);
+}
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+.fade-enter-to, .fade-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 </style>

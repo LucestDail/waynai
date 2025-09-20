@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import AppNavigation from '@/components/AppNavigation.vue'
-import TravelGuideButton from '@/components/TravelGuideButton.vue'
 import { useThemeStore } from '@/stores/theme'
 import { onMounted } from 'vue'
 
@@ -27,8 +26,6 @@ onMounted(() => {
       </div>
     </footer>
     
-    <!-- 여행 가이드 버튼 -->
-    <TravelGuideButton />
   </div>
 </template>
 

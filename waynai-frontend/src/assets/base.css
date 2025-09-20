@@ -41,10 +41,10 @@
   --waynai-bg-secondary: var(--waynai-gray-50);
   --waynai-bg-tertiary: var(--waynai-gray-100);
   
-  /* Text Colors */
-  --waynai-text-primary: var(--waynai-gray-800);
-  --waynai-text-secondary: var(--waynai-gray-600);
-  --waynai-text-tertiary: var(--waynai-gray-500);
+  /* Text Colors - 라이트모드 기본 (검은색 계열) */
+  --waynai-text-primary: #000000;
+  --waynai-text-secondary: #374151;
+  --waynai-text-tertiary: #6b7280;
   --waynai-text-inverse: var(--waynai-white);
   
   /* Border Colors */
@@ -118,21 +118,20 @@
   --waynai-z-tooltip: 1070;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --waynai-bg-primary: var(--waynai-gray-900);
-    --waynai-bg-secondary: var(--waynai-gray-800);
-    --waynai-bg-tertiary: var(--waynai-gray-700);
-    
-    --waynai-text-primary: var(--waynai-gray-100);
-    --waynai-text-secondary: var(--waynai-gray-300);
-    --waynai-text-tertiary: var(--waynai-gray-400);
-    
-    --waynai-border-light: var(--waynai-gray-700);
-    --waynai-border-medium: var(--waynai-gray-600);
-    --waynai-border-dark: var(--waynai-gray-500);
-  }
+/* Dark mode support - .dark 클래스 사용 */
+.dark {
+  --waynai-bg-primary: var(--waynai-gray-900);
+  --waynai-bg-secondary: var(--waynai-gray-800);
+  --waynai-bg-tertiary: var(--waynai-gray-700);
+  
+  /* 다크모드 텍스트 색상 (흰색 계열) */
+  --waynai-text-primary: #ffffff;
+  --waynai-text-secondary: #d1d5db;
+  --waynai-text-tertiary: #9ca3af;
+  
+  --waynai-border-light: var(--waynai-gray-700);
+  --waynai-border-medium: var(--waynai-gray-600);
+  --waynai-border-dark: var(--waynai-gray-500);
 }
 
 /* Reset and Base Styles */

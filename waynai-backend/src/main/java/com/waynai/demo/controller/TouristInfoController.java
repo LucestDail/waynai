@@ -1,7 +1,7 @@
 package com.waynai.demo.controller;
 
-import com.waynai.demo.dto.ApiResponseDto;
-import com.waynai.demo.dto.tourist.TouristApiResponseDto;
+import com.waynai.demo.dto.AreaCodeDto;
+import com.waynai.demo.dto.TouristSpotResponseDto;
 import com.waynai.demo.service.TouristInfoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,171 +10,116 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * 관광지 정보 컨트롤러
+ */
 @Slf4j
 @RestController
-@RequestMapping("/api/tourist-info")
+@RequestMapping("/api/tourist")
 @RequiredArgsConstructor
 public class TouristInfoController {
     
     private final TouristInfoService touristInfoService;
     
     /**
-     * 지역기반 연관 관광지 정보 조회
+     * 특정 지역의 관광지 목록 조회
+     * @param areaCode 지역 코드
+     * @param sigunguCode 시군구 코드
+     * @param pageNo 페이지 번호 (기본값: 1)
+     * @param numOfRows 페이지당 행 수 (기본값: 10)
+     * @return 관광지 목록
      */
-    @GetMapping("/area-based")
-    public ResponseEntity<ApiResponseDto<List<TouristApiResponseDto.TouristItem>>> getAreaBasedRelatedSpots(
-            @RequestParam String areaCd,
-            @RequestParam String signguCd,
+    @GetMapping("/spots")
+    public ResponseEntity<TouristSpotResponseDto> getTouristSpots(
+            @RequestParam String areaCode,
+            @RequestParam String sigunguCode,
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "10") Integer numOfRows) {
         
-        log.info("Requesting area-based related tourist spots - areaCd: {}, signguCd: {}, pageNo: {}, numOfRows: {}", 
-                areaCd, signguCd, pageNo, numOfRows);
-        
         try {
-            List<TouristApiResponseDto.TouristItem> spots = touristInfoService
-                    .getAreaBasedSpots(areaCd, signguCd, pageNo, numOfRows)
-                    .block();
-            
-            return ResponseEntity.ok(ApiResponseDto.<List<TouristApiResponseDto.TouristItem>>builder()
-                    .success(true)
-                    .message("지역기반 연관 관광지 정보 조회 성공")
-                    .data(spots)
-                    .build());
-                    
+            TouristSpotResponseDto response = touristInfoService.getTouristSpots(
+                    areaCode, sigunguCode, pageNo, numOfRows);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Failed to get area-based related tourist spots: {}", e.getMessage(), e);
-            return ResponseEntity.ok(ApiResponseDto.<List<TouristApiResponseDto.TouristItem>>builder()
-                    .success(false)
-                    .message("지역기반 연관 관광지 정보 조회 실패: " + e.getMessage())
-                    .build());
+            log.error("관광지 조회 실패", e);
+            return ResponseEntity.badRequest().body(
+                TouristSpotResponseDto.error("ERROR", "관광지 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
     
     /**
-     * 키워드 기반 연관 관광지 정보 조회
+     * 무작위 지역의 관광지 목록 조회
+     * @param pageNo 페이지 번호 (기본값: 1)
+     * @param numOfRows 페이지당 행 수 (기본값: 10)
+     * @return 관광지 목록
      */
-    @GetMapping("/keyword-based")
-    public ResponseEntity<ApiResponseDto<List<TouristApiResponseDto.TouristItem>>> getKeywordBasedRelatedSpots(
-            @RequestParam String keyword,
-            @RequestParam String areaCd,
-            @RequestParam String signguCd,
+    @GetMapping("/spots/random")
+    public ResponseEntity<TouristSpotResponseDto> getRandomTouristSpots(
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "10") Integer numOfRows) {
         
-        log.info("Requesting keyword-based related tourist spots - keyword: {}, areaCd: {}, signguCd: {}, pageNo: {}, numOfRows: {}", 
-                keyword, areaCd, signguCd, pageNo, numOfRows);
-        
         try {
-            List<TouristApiResponseDto.TouristItem> spots = touristInfoService
-                    .getKeywordBasedSpots(keyword, areaCd, signguCd, pageNo, numOfRows)
-                    .block();
-            
-            return ResponseEntity.ok(ApiResponseDto.<List<TouristApiResponseDto.TouristItem>>builder()
-                    .success(true)
-                    .message("키워드 기반 연관 관광지 정보 조회 성공")
-                    .data(spots)
-                    .build());
-                    
+            TouristSpotResponseDto response = touristInfoService.getRandomTouristSpots(pageNo, numOfRows);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Failed to get keyword-based related tourist spots: {}", e.getMessage(), e);
-            return ResponseEntity.ok(ApiResponseDto.<List<TouristApiResponseDto.TouristItem>>builder()
-                    .success(false)
-                    .message("키워드 기반 연관 관광지 정보 조회 실패: " + e.getMessage())
-                    .build());
+            log.error("무작위 관광지 조회 실패", e);
+            return ResponseEntity.badRequest().body(
+                TouristSpotResponseDto.error("ERROR", "무작위 관광지 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
     
     /**
-     * RAG를 위한 관광지 정보 컨텍스트 조회
+     * 특정 지역의 무작위 시군구 관광지 목록 조회
+     * @param areaCode 지역 코드
+     * @param pageNo 페이지 번호 (기본값: 1)
+     * @param numOfRows 페이지당 행 수 (기본값: 10)
+     * @return 관광지 목록
      */
-    @GetMapping("/rag-context")
-    public ResponseEntity<ApiResponseDto<String>> getRagContext(
-            @RequestParam String keyword,
-            @RequestParam String areaCd,
-            @RequestParam String signguCd) {
-        
-        log.info("Requesting RAG context - keyword: {}, areaCd: {}, signguCd: {}", keyword, areaCd, signguCd);
+    @GetMapping("/spots/random/{areaCode}")
+    public ResponseEntity<TouristSpotResponseDto> getRandomSigunguTouristSpots(
+            @PathVariable String areaCode,
+            @RequestParam(defaultValue = "1") Integer pageNo,
+            @RequestParam(defaultValue = "10") Integer numOfRows) {
         
         try {
-            String context = touristInfoService
-                    .buildTouristContextForRAG(keyword, areaCd, signguCd)
-                    .block();
-            
-            return ResponseEntity.ok(ApiResponseDto.<String>builder()
-                    .success(true)
-                    .message("RAG 컨텍스트 조회 성공")
-                    .data(context)
-                    .build());
-                    
+            TouristSpotResponseDto response = touristInfoService.getRandomSigunguTouristSpots(
+                    areaCode, pageNo, numOfRows);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Failed to get RAG context: {}", e.getMessage(), e);
-            return ResponseEntity.ok(ApiResponseDto.<String>builder()
-                    .success(false)
-                    .message("RAG 컨텍스트 조회 실패: " + e.getMessage())
-                    .build());
+            log.error("지역 내 무작위 시군구 관광지 조회 실패", e);
+            return ResponseEntity.badRequest().body(
+                TouristSpotResponseDto.error("ERROR", "지역 내 무작위 시군구 관광지 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
     
     /**
-     * 지역 기반 관광지 정보 컨텍스트 조회
+     * 모든 지역 코드 목록 조회
+     * @return 지역 코드 목록
      */
-    @GetMapping("/area-rag-context")
-    public ResponseEntity<ApiResponseDto<String>> getAreaBasedRagContext(
-            @RequestParam String areaCd,
-            @RequestParam String signguCd) {
-        
-        log.info("Requesting area-based RAG context - areaCd: {}, signguCd: {}", areaCd, signguCd);
-        
+    @GetMapping("/area-codes")
+    public ResponseEntity<List<AreaCodeDto>> getAllAreaCodes() {
         try {
-            String context = touristInfoService
-                    .buildAreaBasedContextForRAG(areaCd, signguCd)
-                    .block();
-            
-            return ResponseEntity.ok(ApiResponseDto.<String>builder()
-                    .success(true)
-                    .message("지역 기반 RAG 컨텍스트 조회 성공")
-                    .data(context)
-                    .build());
-                    
+            List<AreaCodeDto> areaCodes = touristInfoService.getAllAreaCodes();
+            return ResponseEntity.ok(areaCodes);
         } catch (Exception e) {
-            log.error("Failed to get area-based RAG context: {}", e.getMessage(), e);
-            return ResponseEntity.ok(ApiResponseDto.<String>builder()
-                    .success(false)
-                    .message("지역 기반 RAG 컨텍스트 조회 실패: " + e.getMessage())
-                    .build());
+            log.error("지역 코드 목록 조회 실패", e);
+            return ResponseEntity.badRequest().build();
         }
     }
     
     /**
-     * 카테고리별 관광지 정보 조회
+     * 지역명으로 시군구 목록 조회
+     * @param areaName 지역명
+     * @return 시군구 목록
      */
-    @GetMapping("/category-based")
-    public ResponseEntity<ApiResponseDto<String>> getCategoryBasedTouristInfo(
-            @RequestParam String areaCd,
-            @RequestParam String signguCd,
-            @RequestParam String category) {
-        
-        log.info("Requesting category-based tourist info - areaCd: {}, signguCd: {}, category: {}", 
-                areaCd, signguCd, category);
-        
+    @GetMapping("/area-codes/search")
+    public ResponseEntity<List<AreaCodeDto>> getSigunguByAreaName(@RequestParam String areaName) {
         try {
-            String info = touristInfoService
-                    .getCategoryBasedTouristInfo(areaCd, signguCd, category)
-                    .block();
-            
-            return ResponseEntity.ok(ApiResponseDto.<String>builder()
-                    .success(true)
-                    .message("카테고리별 관광지 정보 조회 성공")
-                    .data(info)
-                    .build());
-                    
+            List<AreaCodeDto> sigunguList = touristInfoService.getSigunguByAreaName(areaName);
+            return ResponseEntity.ok(sigunguList);
         } catch (Exception e) {
-            log.error("Failed to get category-based tourist info: {}", e.getMessage(), e);
-            return ResponseEntity.ok(ApiResponseDto.<String>builder()
-                    .success(false)
-                    .message("카테고리별 관광지 정보 조회 실패: " + e.getMessage())
-                    .build());
+            log.error("지역명으로 시군구 조회 실패", e);
+            return ResponseEntity.badRequest().build();
         }
     }
-} 
+}
