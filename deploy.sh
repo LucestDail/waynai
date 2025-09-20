@@ -41,9 +41,49 @@ NGINX_WEB_ROOT="/var/www/html"
 # Git 저장소 URL (실제 저장소 URL로 변경 필요)
 GIT_REPO_URL="https://github.com/LucestDail/waynai.git"
 
+# 자동 fix 함수들
+fix_environment() {
+    log_info "🔧 환경 설정 자동 수정 중..."
+    
+    # 1. PATH 환경변수 수정
+    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+    export PATH="/opt/maven/bin:$PATH"
+    export MAVEN_HOME="/opt/maven"
+    
+    # 2. Maven 명령어 확인 및 설정
+    if ! command -v mvn >/dev/null 2>&1; then
+        if [ -f "/opt/maven/bin/mvn" ]; then
+            export PATH="/opt/maven/bin:$PATH"
+            log_info "Maven PATH 설정: /opt/maven/bin"
+        elif [ -f "/usr/bin/mvn" ]; then
+            log_info "시스템 Maven 사용: /usr/bin/mvn"
+        else
+            log_warning "Maven을 찾을 수 없습니다. 시스템 Maven 설치를 시도합니다."
+            sudo apt update && sudo apt install -y maven
+        fi
+    fi
+    
+    # 3. Java 환경변수 설정
+    if [ -z "$JAVA_HOME" ]; then
+        export JAVA_HOME="/usr/lib/jvm/java-17-amazon-corretto"
+        log_info "JAVA_HOME 설정: $JAVA_HOME"
+    fi
+    
+    # 4. 환경변수 영구 설정
+    echo 'export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"' >> ~/.bashrc
+    echo 'export PATH="/opt/maven/bin:$PATH"' >> ~/.bashrc
+    echo 'export MAVEN_HOME="/opt/maven"' >> ~/.bashrc
+    echo 'export JAVA_HOME="/usr/lib/jvm/java-17-amazon-corretto"' >> ~/.bashrc
+    
+    log_success "환경 설정 수정 완료"
+}
+
 # 백엔드 배포 함수
 deploy_backend() {
     log_info "🚀 백엔드 배포 시작..."
+    
+    # 환경 설정 자동 수정
+    fix_environment
     
     # 1. 기존 백엔드 프로세스 중지
     log_info "기존 백엔드 프로세스 중지 중..."
@@ -68,10 +108,6 @@ deploy_backend() {
     # 3. 백엔드 빌드
     log_info "백엔드 빌드 중..."
     cd "$BACKEND_DIR"
-    
-    # Maven PATH 설정
-    export PATH="/opt/maven/bin:$PATH"
-    export MAVEN_HOME="/opt/maven"
     
     # Maven 명령어 확인 및 실행
     MAVEN_CMD=""
@@ -129,6 +165,9 @@ deploy_backend() {
 deploy_frontend() {
     log_info "🎨 프론트엔드 배포 시작..."
     
+    # 환경 설정 자동 수정
+    fix_environment
+    
     # 1. 소스 코드 최신화
     log_info "소스 코드 최신화 중..."
     cd "$PROJECT_ROOT"
@@ -171,6 +210,10 @@ deploy_frontend() {
 # 전체 배포 함수
 deploy_all() {
     log_info "🚀 전체 배포 시작..."
+    
+    # 환경 설정 자동 수정
+    fix_environment
+    
     deploy_backend
     deploy_frontend
     log_success "전체 배포 완료!"
@@ -252,8 +295,12 @@ case "${1:-all}" in
     "rollback")
         rollback
         ;;
+    "fix")
+        fix_environment
+        log_success "환경 설정 수정 완료!"
+        ;;
     *)
-        echo "사용법: $0 [backend|frontend|all|status|rollback]"
+        echo "사용법: $0 [backend|frontend|all|status|rollback|fix]"
         echo ""
         echo "옵션:"
         echo "  backend   - 백엔드만 배포"
@@ -261,6 +308,7 @@ case "${1:-all}" in
         echo "  all       - 전체 배포 (기본값)"
         echo "  status    - 서비스 상태 확인"
         echo "  rollback  - 이전 버전으로 롤백"
+        echo "  fix       - 환경 설정 수정만 실행"
         exit 1
         ;;
 esac
