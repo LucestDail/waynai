@@ -46,17 +46,9 @@ public class TravelService {
                 .flatMapMany(result -> {
                     log.info("의도 분석 및 네이버 검색 완료: {}", result);
                     
-                    // 네이버 검색 결과가 있는 경우 추가 정보 제공
+                    // 네이버 검색 결과가 있는 경우 해당 결과를 포함한 여행 계획 생성
                     if (result.isHasNaverSearch() && result.getNaverSearchResult() != null) {
-                        return Flux.just("네이버 블로그 검색 결과를 찾았습니다:\n")
-                                .concatWith(Flux.fromIterable(result.getNaverSearchResult().getItems())
-                                        .take(3) // 상위 3개 결과만 표시
-                                        .map(item -> String.format("- %s\n  %s\n  링크: %s\n", 
-                                                item.getTitle(), 
-                                                item.getDescription(), 
-                                                item.getLink())))
-                                .concatWith(Flux.just("\n위 정보를 바탕으로 여행 계획을 생성하겠습니다:\n"))
-                                .concatWith(travelPlanService.generateTravelPlanWithSearch(result));
+                        return travelPlanService.generateTravelPlanWithSearch(result);
                     } else {
                         return travelPlanService.generateTravelPlan(result.getIntentAnalysis());
                     }

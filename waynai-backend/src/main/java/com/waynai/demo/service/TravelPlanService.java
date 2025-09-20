@@ -185,11 +185,15 @@ public class TravelPlanService {
                 context.append("=== 네이버 블로그 검색 결과 ===\n");
                 context.append(formatNaverSearchContext(result.getNaverSearchResult()));
                 context.append("\n\n");
+                
+                // 네이버 검색 결과가 있으면 지역 기반 관광지 정보는 수집하지 않음
+                // (네이버 검색 결과가 더 관련성이 높으므로)
+                context.append("관광지 정보: 네이버 검색 결과를 참고하여 여행 계획을 수립하세요.");
+            } else {
+                // 네이버 검색 결과가 없는 경우에만 기존 컨텍스트 수집 로직 사용
+                String existingContext = collectContext(intentAnalysis);
+                context.append(existingContext);
             }
-            
-            // 기존 컨텍스트 수집 로직
-            String existingContext = collectContext(intentAnalysis);
-            context.append(existingContext);
             
         } catch (Exception e) {
             log.warn("컨텍스트 수집 중 오류 발생 (네이버 검색 포함)", e);
