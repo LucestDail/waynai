@@ -82,7 +82,15 @@ const copyToClipboard = async () => {
   try {
     // HTML 태그를 제거하고 순수 텍스트만 복사
     const textContent = stripHtmlTags(streamState.currentData);
-    await navigator.clipboard.writeText(textContent);
+    
+    // 모바일 환경에서 더 안정적인 복사 방법 사용
+    if (navigator.clipboard && window.isSecureContext) {
+      // 최신 브라우저에서 Clipboard API 사용
+      await navigator.clipboard.writeText(textContent);
+    } else {
+      // 구형 브라우저나 모바일에서 fallback 방법 사용
+      await fallbackCopyTextToClipboard(textContent);
+    }
     
     // 성공 메시지 표시 (간단한 토스트)
     showToast('여행 계획이 클립보드에 복사되었습니다!');
@@ -160,6 +168,57 @@ const stripHtmlTags = (html: string): string => {
   const temp = document.createElement('div');
   temp.innerHTML = html;
   return temp.textContent || temp.innerText || '';
+};
+
+// 모바일 환경을 위한 fallback 복사 함수
+const fallbackCopyTextToClipboard = (text: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    // 임시 textarea 요소 생성
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    
+    // 화면에서 보이지 않도록 설정
+    textArea.style.position = 'fixed';
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.width = '2em';
+    textArea.style.height = '2em';
+    textArea.style.padding = '0';
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
+    textArea.style.opacity = '0';
+    textArea.style.zIndex = '-1';
+    
+    // DOM에 추가
+    document.body.appendChild(textArea);
+    
+    try {
+      // iOS Safari에서 작동하도록 수정
+      textArea.focus();
+      textArea.select();
+      
+      // iOS에서 select()가 작동하지 않을 경우를 대비
+      if (textArea.setSelectionRange) {
+        textArea.setSelectionRange(0, 99999);
+      }
+      
+      // 복사 실행
+      const successful = document.execCommand('copy');
+      
+      if (successful) {
+        resolve();
+      } else {
+        reject(new Error('복사 명령이 실패했습니다.'));
+      }
+    } catch (err) {
+      reject(err);
+    } finally {
+      // 임시 요소 제거
+      document.body.removeChild(textArea);
+    }
+  });
 };
 
 const showToast = (message: string) => {
