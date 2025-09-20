@@ -68,7 +68,40 @@ deploy_backend() {
     # 3. 백엔드 빌드
     log_info "백엔드 빌드 중..."
     cd "$BACKEND_DIR"
-    mvn clean package -DskipTests
+    
+    # Maven PATH 설정
+    export PATH="/opt/maven/bin:$PATH"
+    export MAVEN_HOME="/opt/maven"
+    
+    # Maven 명령어 확인 및 실행
+    MAVEN_CMD=""
+    if command -v mvn >/dev/null 2>&1; then
+        MAVEN_CMD="mvn"
+        log_success "Maven 명령어 사용 가능: $(which mvn)"
+    elif [ -f "/opt/maven/bin/mvn" ]; then
+        MAVEN_CMD="/opt/maven/bin/mvn"
+        log_info "Maven 직접 경로 사용: $MAVEN_CMD"
+    elif [ -f "/usr/bin/mvn" ]; then
+        MAVEN_CMD="/usr/bin/mvn"
+        log_info "Maven 시스템 경로 사용: $MAVEN_CMD"
+    else
+        log_error "Maven을 찾을 수 없습니다. PATH: $PATH"
+        log_info "사용 가능한 Maven 경로를 찾는 중..."
+        find /opt /usr -name "mvn" -type f 2>/dev/null | head -1 | while read mvn_path; do
+            log_info "발견된 Maven: $mvn_path"
+            MAVEN_CMD="$mvn_path"
+        done
+        
+        if [ -z "$MAVEN_CMD" ]; then
+            log_error "Maven을 찾을 수 없습니다. Maven 설치가 필요합니다."
+            log_info "Maven 설치를 위해 다음 명령어를 실행하세요:"
+            log_info "sudo apt install maven"
+            exit 1
+        fi
+    fi
+    
+    log_info "Maven 빌드 실행 중: $MAVEN_CMD"
+    $MAVEN_CMD clean package -DskipTests
     
     if [ ! -f "target/$BACKEND_JAR" ]; then
         log_error "빌드 실패: JAR 파일이 생성되지 않았습니다."
