@@ -35,7 +35,12 @@ NGINX_WEB_ROOT="/var/www/html"
 
 log_info "🚀 WaynAI 서버 초기 설정 시작..."
 
-# 1. 디렉토리 생성
+# 1. PATH 환경변수 수정
+log_info "PATH 환경변수 수정 중..."
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+echo 'export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"' >> ~/.bashrc
+
+# 2. 디렉토리 생성
 log_info "필요한 디렉토리 생성 중..."
 sudo mkdir -p "$PROJECT_ROOT"
 sudo mkdir -p "$LOG_DIR"
