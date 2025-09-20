@@ -125,15 +125,15 @@ sudo systemctl reload nginx
 
 # 6. systemd 서비스 파일 생성 (백엔드 자동 시작용)
 log_info "systemd 서비스 파일 생성 중..."
-sudo tee /etc/systemd/system/waynai-backend.service << 'EOF'
+sudo tee /etc/systemd/system/waynai-backend.service << EOF
 [Unit]
 Description=WaynAI Backend Service
 After=network.target
 
 [Service]
 Type=simple
-User=waynai
-Group=waynai
+User=$USER
+Group=$USER
 WorkingDirectory=/var/www/waynai/waynai-backend
 ExecStart=/usr/bin/java -jar /var/www/waynai/waynai-backend/target/waynai-backend-0.0.1-SNAPSHOT.jar
 Restart=always
@@ -145,12 +145,10 @@ StandardError=append:/var/log/waynai/backend.log
 WantedBy=multi-user.target
 EOF
 
-# 7. waynai 사용자 생성
-log_info "waynai 사용자 생성 중..."
-sudo adduser --system --group --home /var/www/waynai waynai || true
-sudo usermod -aG sudo waynai || true
-sudo chown -R waynai:waynai "$PROJECT_ROOT"
-sudo chown -R waynai:waynai "$LOG_DIR"
+# 7. 디렉토리 권한 설정
+log_info "디렉토리 권한 설정 중..."
+sudo chown -R $USER:$USER "$PROJECT_ROOT"
+sudo chown -R $USER:$USER "$LOG_DIR"
 
 # 8. 방화벽 설정
 log_info "방화벽 설정 중..."
@@ -160,7 +158,7 @@ sudo ufw --force enable
 
 # 9. 로그 로테이션 설정
 log_info "로그 로테이션 설정 중..."
-sudo tee /etc/logrotate.d/waynai << 'EOF'
+sudo tee /etc/logrotate.d/waynai << EOF
 /var/log/waynai/*.log {
     daily
     missingok
@@ -168,7 +166,7 @@ sudo tee /etc/logrotate.d/waynai << 'EOF'
     compress
     delaycompress
     notifempty
-    create 644 waynai waynai
+    create 644 $USER $USER
     postrotate
         systemctl reload waynai-backend
     endscript

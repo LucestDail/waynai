@@ -7,3 +7,7 @@ alias waynai-key='cd /var/www/waynai && ./deploy.sh set-key'
 # 키 파일 확인
 alias waynai-check-key='cat /var/www/key/key | head -c 10 && echo "..."'
 alias waynai-key-file='ls -la /var/www/key/key'
+
+# 권한 수정 (현재 사용자로)
+alias waynai-chown='sudo chown -R $USER:$USER /var/www/waynai'
+alias waynai-chmod='sudo chmod +x /var/www/waynai/*.sh'

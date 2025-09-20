@@ -337,14 +337,14 @@ case "${1:-all}" in
         if [ -n "$2" ]; then
             echo "$2" | sudo tee "$KEY_FILE" > /dev/null
             sudo chmod 600 "$KEY_FILE"
-            sudo chown waynai:waynai "$KEY_FILE"
+            sudo chown $USER:$USER "$KEY_FILE"
             log_success "API 키가 설정되었습니다: ${2:0:10}..."
         else
             read -p "Gemini API 키를 입력하세요: " api_key
             if [ -n "$api_key" ]; then
                 echo "$api_key" | sudo tee "$KEY_FILE" > /dev/null
                 sudo chmod 600 "$KEY_FILE"
-                sudo chown waynai:waynai "$KEY_FILE"
+                sudo chown $USER:$USER "$KEY_FILE"
                 log_success "API 키가 설정되었습니다: ${api_key:0:10}..."
             else
                 log_error "API 키가 입력되지 않았습니다."
