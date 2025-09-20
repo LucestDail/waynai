@@ -56,7 +56,7 @@ public class TravelService {
                                                 item.getDescription(), 
                                                 item.getLink())))
                                 .concatWith(Flux.just("\n위 정보를 바탕으로 여행 계획을 생성하겠습니다:\n"))
-                                .concatWith(travelPlanService.generateTravelPlan(result.getIntentAnalysis()));
+                                .concatWith(travelPlanService.generateTravelPlanWithSearch(result));
                     } else {
                         return travelPlanService.generateTravelPlan(result.getIntentAnalysis());
                     }
