@@ -1,0 +1,9 @@
+# 추가할 alias 명령어들
+
+# API 키 관리
+alias waynai-set-key='cd /var/www/waynai && ./deploy.sh set-key'
+alias waynai-key='cd /var/www/waynai && ./deploy.sh set-key'
+
+# 키 파일 확인
+alias waynai-check-key='cat /var/www/key/key | head -c 10 && echo "..."'
+alias waynai-key-file='ls -la /var/www/key/key'

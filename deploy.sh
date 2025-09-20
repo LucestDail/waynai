@@ -105,7 +105,37 @@ deploy_backend() {
         log_warning "Git 저장소가 아닙니다. 수동으로 코드를 업데이트해주세요."
     fi
     
-    # 3. 백엔드 빌드
+    # 3. API 키 파일 처리
+    log_info "API 키 파일 처리 중..."
+    KEY_FILE="/var/www/key/key"
+    if [ -f "$KEY_FILE" ]; then
+        GEMINI_API_KEY=$(cat "$KEY_FILE" | tr -d '\n\r')
+        if [ -n "$GEMINI_API_KEY" ]; then
+            log_info "API 키 파일에서 키를 읽었습니다: ${GEMINI_API_KEY:0:10}..."
+            
+            # application.properties 파일 수정
+            PROPERTIES_FILE="$BACKEND_DIR/src/main/resources/application.properties"
+            if [ -f "$PROPERTIES_FILE" ]; then
+                # 기존 gemini.api.key 라인을 찾아서 교체
+                if grep -q "gemini.api.key" "$PROPERTIES_FILE"; then
+                    sed -i "s/gemini.api.key=.*/gemini.api.key=$GEMINI_API_KEY/" "$PROPERTIES_FILE"
+                    log_success "application.properties에 API 키가 업데이트되었습니다."
+                else
+                    echo "gemini.api.key=$GEMINI_API_KEY" >> "$PROPERTIES_FILE"
+                    log_success "application.properties에 API 키가 추가되었습니다."
+                fi
+            else
+                log_warning "application.properties 파일을 찾을 수 없습니다: $PROPERTIES_FILE"
+            fi
+        else
+            log_warning "API 키 파일이 비어있습니다: $KEY_FILE"
+        fi
+    else
+        log_warning "API 키 파일을 찾을 수 없습니다: $KEY_FILE"
+        log_info "기본값을 사용합니다."
+    fi
+    
+    # 4. 백엔드 빌드
     log_info "백엔드 빌드 중..."
     cd "$BACKEND_DIR"
     
@@ -299,8 +329,31 @@ case "${1:-all}" in
         fix_environment
         log_success "환경 설정 수정 완료!"
         ;;
+    "set-key")
+        log_info "API 키 설정 중..."
+        KEY_FILE="/var/www/key/key"
+        sudo mkdir -p "$(dirname "$KEY_FILE")"
+        
+        if [ -n "$2" ]; then
+            echo "$2" | sudo tee "$KEY_FILE" > /dev/null
+            sudo chmod 600 "$KEY_FILE"
+            sudo chown waynai:waynai "$KEY_FILE"
+            log_success "API 키가 설정되었습니다: ${2:0:10}..."
+        else
+            read -p "Gemini API 키를 입력하세요: " api_key
+            if [ -n "$api_key" ]; then
+                echo "$api_key" | sudo tee "$KEY_FILE" > /dev/null
+                sudo chmod 600 "$KEY_FILE"
+                sudo chown waynai:waynai "$KEY_FILE"
+                log_success "API 키가 설정되었습니다: ${api_key:0:10}..."
+            else
+                log_error "API 키가 입력되지 않았습니다."
+                exit 1
+            fi
+        fi
+        ;;
     *)
-        echo "사용법: $0 [backend|frontend|all|status|rollback|fix]"
+        echo "사용법: $0 [backend|frontend|all|status|rollback|fix|set-key]"
         echo ""
         echo "옵션:"
         echo "  backend   - 백엔드만 배포"
@@ -309,6 +362,7 @@ case "${1:-all}" in
         echo "  status    - 서비스 상태 확인"
         echo "  rollback  - 이전 버전으로 롤백"
         echo "  fix       - 환경 설정 수정만 실행"
+        echo "  set-key   - API 키 설정 (./deploy.sh set-key YOUR_API_KEY)"
         exit 1
         ;;
 esac
