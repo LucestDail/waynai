@@ -3,6 +3,7 @@ package com.waynai.demo.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.waynai.demo.client.GeminiApiClient;
 import com.waynai.demo.dto.IntentAnalysisDto;
+import com.waynai.demo.dto.IntentAnalysisWithSearchDto;
 import com.waynai.demo.util.AreaCodeUtil;
 import com.waynai.demo.util.PromptLoader;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class IntentAnalysisService {
     private final PromptLoader promptLoader;
     private final ObjectMapper objectMapper;
     private final AreaCodeUtil areaCodeUtil;
+    private final NaverSearchService naverSearchService;
 
     /**
      * 사용자 입력 의도 분석
@@ -116,5 +118,106 @@ public class IntentAnalysisService {
             log.warn("지역 데이터 포맷팅 실패", e);
             return "지역 데이터를 불러올 수 없습니다.";
         }
+    }
+
+    /**
+     * 사용자 입력 의도 분석 및 네이버 검색 (None인 경우)
+     * @param query 사용자 입력
+     * @return 의도 분석 결과와 네이버 검색 결과
+     */
+    public Mono<IntentAnalysisWithSearchDto> analyzeIntentWithSearch(String query) {
+        return analyzeIntent(query)
+                .flatMap(intentAnalysis -> {
+                    // 의도가 "none"이거나 "general"인 경우 네이버 검색 수행
+                    if ("none".equals(intentAnalysis.getIntent()) || "general".equals(intentAnalysis.getIntent())) {
+                        log.info("의도 분석 결과가 'none' 또는 'general'이므로 네이버 검색 수행: {}", query);
+                        return naverSearchService.searchBlog(query)
+                                .map(naverResult -> IntentAnalysisWithSearchDto.builder()
+                                        .intentAnalysis(intentAnalysis)
+                                        .naverSearchResult(naverResult)
+                                        .hasNaverSearch(true)
+                                        .build())
+                                .onErrorResume(error -> {
+                                    log.error("네이버 검색 실패", error);
+                                    return Mono.just(IntentAnalysisWithSearchDto.builder()
+                                            .intentAnalysis(intentAnalysis)
+                                            .naverSearchResult(null)
+                                            .hasNaverSearch(false)
+                                            .build());
+                                });
+                    } else {
+                        // 의도가 "none"이 아닌 경우 네이버 검색 없이 반환
+                        return Mono.just(IntentAnalysisWithSearchDto.builder()
+                                .intentAnalysis(intentAnalysis)
+                                .naverSearchResult(null)
+                                .hasNaverSearch(false)
+                                .build());
+                    }
+                })
+                .onErrorResume(error -> {
+                    log.error("의도 분석 실패, 네이버 검색으로 대체: {}", query, error);
+                    // 의도 분석 실패 시 네이버 검색 수행
+                    return naverSearchService.searchBlog(query)
+                            .map(naverResult -> {
+                                // 기본 의도 분석 결과 생성
+                                IntentAnalysisDto defaultIntent = IntentAnalysisDto.builder()
+                                        .intent("none")
+                                        .confidence(0.5)
+                                        .reason("의도 분석 실패로 인한 네이버 검색 대체")
+                                        .build();
+                                
+                                return IntentAnalysisWithSearchDto.builder()
+                                        .intentAnalysis(defaultIntent)
+                                        .naverSearchResult(naverResult)
+                                        .hasNaverSearch(true)
+                                        .build();
+                            })
+                            .onErrorResume(naverError -> {
+                                log.error("네이버 검색도 실패", naverError);
+                                IntentAnalysisDto defaultIntent = IntentAnalysisDto.builder()
+                                        .intent("none")
+                                        .confidence(0.0)
+                                        .reason("의도 분석 및 네이버 검색 모두 실패")
+                                        .build();
+                                
+                                return Mono.just(IntentAnalysisWithSearchDto.builder()
+                                        .intentAnalysis(defaultIntent)
+                                        .naverSearchResult(null)
+                                        .hasNaverSearch(false)
+                                        .build());
+                            });
+                })
+                .onErrorResume(error -> {
+                    log.error("전체 프로세스 실패, 네이버 검색으로 대체: {}", query, error);
+                    // 전체 프로세스 실패 시에도 네이버 검색 수행
+                    return naverSearchService.searchBlog(query)
+                            .map(naverResult -> {
+                                IntentAnalysisDto defaultIntent = IntentAnalysisDto.builder()
+                                        .intent("none")
+                                        .confidence(0.5)
+                                        .reason("전체 프로세스 실패로 인한 네이버 검색 대체")
+                                        .build();
+                                
+                                return IntentAnalysisWithSearchDto.builder()
+                                        .intentAnalysis(defaultIntent)
+                                        .naverSearchResult(naverResult)
+                                        .hasNaverSearch(true)
+                                        .build();
+                            })
+                            .onErrorResume(naverError -> {
+                                log.error("네이버 검색도 실패", naverError);
+                                IntentAnalysisDto defaultIntent = IntentAnalysisDto.builder()
+                                        .intent("none")
+                                        .confidence(0.0)
+                                        .reason("전체 프로세스 및 네이버 검색 모두 실패")
+                                        .build();
+                                
+                                return Mono.just(IntentAnalysisWithSearchDto.builder()
+                                        .intentAnalysis(defaultIntent)
+                                        .naverSearchResult(null)
+                                        .hasNaverSearch(false)
+                                        .build());
+                            });
+                });
     }
 }

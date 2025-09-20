@@ -33,4 +33,35 @@ public class TravelService {
                 .doOnComplete(() -> log.info("통합 여행 계획 생성 완료"))
                 .doOnError(error -> log.error("통합 여행 계획 생성 오류", error));
     }
+
+    /**
+     * 통합 여행 계획 생성 (네이버 검색 포함)
+     * @param query 사용자 입력
+     * @return 여행 계획 스트림
+     */
+    public Flux<String> generateTravelPlanWithSearch(String query) {
+        log.info("통합 여행 계획 생성 시작 (네이버 검색 포함): {}", query);
+        
+        return intentAnalysisService.analyzeIntentWithSearch(query)
+                .flatMapMany(result -> {
+                    log.info("의도 분석 및 네이버 검색 완료: {}", result);
+                    
+                    // 네이버 검색 결과가 있는 경우 추가 정보 제공
+                    if (result.isHasNaverSearch() && result.getNaverSearchResult() != null) {
+                        return Flux.just("네이버 블로그 검색 결과를 찾았습니다:\n")
+                                .concatWith(Flux.fromIterable(result.getNaverSearchResult().getItems())
+                                        .take(3) // 상위 3개 결과만 표시
+                                        .map(item -> String.format("- %s\n  %s\n  링크: %s\n", 
+                                                item.getTitle(), 
+                                                item.getDescription(), 
+                                                item.getLink())))
+                                .concatWith(Flux.just("\n위 정보를 바탕으로 여행 계획을 생성하겠습니다:\n"))
+                                .concatWith(travelPlanService.generateTravelPlan(result.getIntentAnalysis()));
+                    } else {
+                        return travelPlanService.generateTravelPlan(result.getIntentAnalysis());
+                    }
+                })
+                .doOnComplete(() -> log.info("통합 여행 계획 생성 완료 (네이버 검색 포함)"))
+                .doOnError(error -> log.error("통합 여행 계획 생성 오류 (네이버 검색 포함)", error));
+    }
 }

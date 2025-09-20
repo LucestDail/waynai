@@ -2,11 +2,15 @@
 
 # API 키 관리
 alias waynai-set-key='cd /var/www/waynai && ./deploy.sh set-key'
-alias waynai-key='cd /var/www/waynai && ./deploy.sh set-key'
+alias waynai-set-naver-id='cd /var/www/waynai && ./deploy.sh set-naver-id'
+alias waynai-set-naver-secret='cd /var/www/waynai && ./deploy.sh set-naver-secret'
+alias waynai-set-all-keys='cd /var/www/waynai && ./deploy.sh set-all-keys'
 
 # 키 파일 확인
 alias waynai-check-key='cat /var/www/key/key | head -c 10 && echo "..."'
-alias waynai-key-file='ls -la /var/www/key/key'
+alias waynai-check-naver-id='cat /var/www/key/naverId | head -c 10 && echo "..."'
+alias waynai-check-naver-secret='cat /var/www/key/naverSecret | head -c 10 && echo "..."'
+alias waynai-key-files='ls -la /var/www/key/'
 
 # 권한 수정 (현재 사용자로)
 alias waynai-chown='sudo chown -R $USER:$USER /var/www/waynai'

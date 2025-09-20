@@ -107,32 +107,75 @@ deploy_backend() {
     
     # 3. API 키 파일 처리
     log_info "API 키 파일 처리 중..."
-    KEY_FILE="/var/www/key/key"
-    if [ -f "$KEY_FILE" ]; then
-        GEMINI_API_KEY=$(cat "$KEY_FILE" | tr -d '\n\r')
+    PROPERTIES_FILE="$BACKEND_DIR/src/main/resources/application.properties"
+    
+    # Gemini API 키 처리
+    GEMINI_KEY_FILE="/var/www/key/key"
+    if [ -f "$GEMINI_KEY_FILE" ]; then
+        GEMINI_API_KEY=$(cat "$GEMINI_KEY_FILE" | tr -d '\n\r')
         if [ -n "$GEMINI_API_KEY" ]; then
-            log_info "API 키 파일에서 키를 읽었습니다: ${GEMINI_API_KEY:0:10}..."
+            log_info "Gemini API 키 파일에서 키를 읽었습니다: ${GEMINI_API_KEY:0:10}..."
             
-            # application.properties 파일 수정
-            PROPERTIES_FILE="$BACKEND_DIR/src/main/resources/application.properties"
             if [ -f "$PROPERTIES_FILE" ]; then
-                # 기존 gemini.api.key 라인을 찾아서 교체
                 if grep -q "gemini.api.key" "$PROPERTIES_FILE"; then
                     sed -i "s/gemini.api.key=.*/gemini.api.key=$GEMINI_API_KEY/" "$PROPERTIES_FILE"
-                    log_success "application.properties에 API 키가 업데이트되었습니다."
+                    log_success "Gemini API 키가 업데이트되었습니다."
                 else
                     echo "gemini.api.key=$GEMINI_API_KEY" >> "$PROPERTIES_FILE"
-                    log_success "application.properties에 API 키가 추가되었습니다."
+                    log_success "Gemini API 키가 추가되었습니다."
                 fi
-            else
-                log_warning "application.properties 파일을 찾을 수 없습니다: $PROPERTIES_FILE"
             fi
         else
-            log_warning "API 키 파일이 비어있습니다: $KEY_FILE"
+            log_warning "Gemini API 키 파일이 비어있습니다: $GEMINI_KEY_FILE"
         fi
     else
-        log_warning "API 키 파일을 찾을 수 없습니다: $KEY_FILE"
-        log_info "기본값을 사용합니다."
+        log_warning "Gemini API 키 파일을 찾을 수 없습니다: $GEMINI_KEY_FILE"
+    fi
+    
+    # Naver API ID 처리
+    NAVER_ID_FILE="/var/www/key/naverId"
+    if [ -f "$NAVER_ID_FILE" ]; then
+        NAVER_API_ID=$(cat "$NAVER_ID_FILE" | tr -d '\n\r')
+        if [ -n "$NAVER_API_ID" ]; then
+            log_info "Naver API ID 파일에서 ID를 읽었습니다: ${NAVER_API_ID:0:10}..."
+            
+            if [ -f "$PROPERTIES_FILE" ]; then
+                if grep -q "naver.api.client.id" "$PROPERTIES_FILE"; then
+                    sed -i "s/naver.api.client.id=.*/naver.api.client.id=$NAVER_API_ID/" "$PROPERTIES_FILE"
+                    log_success "Naver API ID가 업데이트되었습니다."
+                else
+                    echo "naver.api.client.id=$NAVER_API_ID" >> "$PROPERTIES_FILE"
+                    log_success "Naver API ID가 추가되었습니다."
+                fi
+            fi
+        else
+            log_warning "Naver API ID 파일이 비어있습니다: $NAVER_ID_FILE"
+        fi
+    else
+        log_warning "Naver API ID 파일을 찾을 수 없습니다: $NAVER_ID_FILE"
+    fi
+    
+    # Naver API Secret 처리
+    NAVER_SECRET_FILE="/var/www/key/naverSecret"
+    if [ -f "$NAVER_SECRET_FILE" ]; then
+        NAVER_API_SECRET=$(cat "$NAVER_SECRET_FILE" | tr -d '\n\r')
+        if [ -n "$NAVER_API_SECRET" ]; then
+            log_info "Naver API Secret 파일에서 Secret을 읽었습니다: ${NAVER_API_SECRET:0:10}..."
+            
+            if [ -f "$PROPERTIES_FILE" ]; then
+                if grep -q "naver.api.client.secret" "$PROPERTIES_FILE"; then
+                    sed -i "s/naver.api.client.secret=.*/naver.api.client.secret=$NAVER_API_SECRET/" "$PROPERTIES_FILE"
+                    log_success "Naver API Secret이 업데이트되었습니다."
+                else
+                    echo "naver.api.client.secret=$NAVER_API_SECRET" >> "$PROPERTIES_FILE"
+                    log_success "Naver API Secret이 추가되었습니다."
+                fi
+            fi
+        else
+            log_warning "Naver API Secret 파일이 비어있습니다: $NAVER_SECRET_FILE"
+        fi
+    else
+        log_warning "Naver API Secret 파일을 찾을 수 없습니다: $NAVER_SECRET_FILE"
     fi
     
     # 4. 백엔드 빌드
@@ -338,31 +381,118 @@ case "${1:-all}" in
             echo "$2" | sudo tee "$KEY_FILE" > /dev/null
             sudo chmod 600 "$KEY_FILE"
             sudo chown $USER:$USER "$KEY_FILE"
-            log_success "API 키가 설정되었습니다: ${2:0:10}..."
+            log_success "Gemini API 키가 설정되었습니다: ${2:0:10}..."
         else
             read -p "Gemini API 키를 입력하세요: " api_key
             if [ -n "$api_key" ]; then
                 echo "$api_key" | sudo tee "$KEY_FILE" > /dev/null
                 sudo chmod 600 "$KEY_FILE"
                 sudo chown $USER:$USER "$KEY_FILE"
-                log_success "API 키가 설정되었습니다: ${api_key:0:10}..."
+                log_success "Gemini API 키가 설정되었습니다: ${api_key:0:10}..."
             else
                 log_error "API 키가 입력되지 않았습니다."
                 exit 1
             fi
         fi
         ;;
+    "set-naver-id")
+        log_info "Naver API ID 설정 중..."
+        NAVER_ID_FILE="/var/www/key/naverId"
+        sudo mkdir -p "$(dirname "$NAVER_ID_FILE")"
+        
+        if [ -n "$2" ]; then
+            echo "$2" | sudo tee "$NAVER_ID_FILE" > /dev/null
+            sudo chmod 600 "$NAVER_ID_FILE"
+            sudo chown $USER:$USER "$NAVER_ID_FILE"
+            log_success "Naver API ID가 설정되었습니다: ${2:0:10}..."
+        else
+            read -p "Naver API ID를 입력하세요: " naver_id
+            if [ -n "$naver_id" ]; then
+                echo "$naver_id" | sudo tee "$NAVER_ID_FILE" > /dev/null
+                sudo chmod 600 "$NAVER_ID_FILE"
+                sudo chown $USER:$USER "$NAVER_ID_FILE"
+                log_success "Naver API ID가 설정되었습니다: ${naver_id:0:10}..."
+            else
+                log_error "Naver API ID가 입력되지 않았습니다."
+                exit 1
+            fi
+        fi
+        ;;
+    "set-naver-secret")
+        log_info "Naver API Secret 설정 중..."
+        NAVER_SECRET_FILE="/var/www/key/naverSecret"
+        sudo mkdir -p "$(dirname "$NAVER_SECRET_FILE")"
+        
+        if [ -n "$2" ]; then
+            echo "$2" | sudo tee "$NAVER_SECRET_FILE" > /dev/null
+            sudo chmod 600 "$NAVER_SECRET_FILE"
+            sudo chown $USER:$USER "$NAVER_SECRET_FILE"
+            log_success "Naver API Secret이 설정되었습니다: ${2:0:10}..."
+        else
+            read -p "Naver API Secret을 입력하세요: " naver_secret
+            if [ -n "$naver_secret" ]; then
+                echo "$naver_secret" | sudo tee "$NAVER_SECRET_FILE" > /dev/null
+                sudo chmod 600 "$NAVER_SECRET_FILE"
+                sudo chown $USER:$USER "$NAVER_SECRET_FILE"
+                log_success "Naver API Secret이 설정되었습니다: ${naver_secret:0:10}..."
+            else
+                log_error "Naver API Secret이 입력되지 않았습니다."
+                exit 1
+            fi
+        fi
+        ;;
+    "set-all-keys")
+        log_info "모든 API 키 설정 중..."
+        
+        # Gemini API 키
+        read -p "Gemini API 키를 입력하세요: " gemini_key
+        if [ -n "$gemini_key" ]; then
+            echo "$gemini_key" | sudo tee "/var/www/key/key" > /dev/null
+            sudo chmod 600 "/var/www/key/key"
+            sudo chown $USER:$USER "/var/www/key/key"
+            log_success "Gemini API 키 설정 완료"
+        fi
+        
+        # Naver API ID
+        read -p "Naver API ID를 입력하세요: " naver_id
+        if [ -n "$naver_id" ]; then
+            echo "$naver_id" | sudo tee "/var/www/key/naverId" > /dev/null
+            sudo chmod 600 "/var/www/key/naverId"
+            sudo chown $USER:$USER "/var/www/key/naverId"
+            log_success "Naver API ID 설정 완료"
+        fi
+        
+        # Naver API Secret
+        read -p "Naver API Secret을 입력하세요: " naver_secret
+        if [ -n "$naver_secret" ]; then
+            echo "$naver_secret" | sudo tee "/var/www/key/naverSecret" > /dev/null
+            sudo chmod 600 "/var/www/key/naverSecret"
+            sudo chown $USER:$USER "/var/www/key/naverSecret"
+            log_success "Naver API Secret 설정 완료"
+        fi
+        
+        log_success "모든 API 키 설정이 완료되었습니다!"
+        ;;
     *)
-        echo "사용법: $0 [backend|frontend|all|status|rollback|fix|set-key]"
+        echo "사용법: $0 [backend|frontend|all|status|rollback|fix|set-key|set-naver-id|set-naver-secret|set-all-keys]"
         echo ""
         echo "옵션:"
-        echo "  backend   - 백엔드만 배포"
-        echo "  frontend  - 프론트엔드만 배포"
-        echo "  all       - 전체 배포 (기본값)"
-        echo "  status    - 서비스 상태 확인"
-        echo "  rollback  - 이전 버전으로 롤백"
-        echo "  fix       - 환경 설정 수정만 실행"
-        echo "  set-key   - API 키 설정 (./deploy.sh set-key YOUR_API_KEY)"
+        echo "  backend         - 백엔드만 배포"
+        echo "  frontend        - 프론트엔드만 배포"
+        echo "  all             - 전체 배포 (기본값)"
+        echo "  status          - 서비스 상태 확인"
+        echo "  rollback        - 이전 버전으로 롤백"
+        echo "  fix             - 환경 설정 수정만 실행"
+        echo "  set-key         - Gemini API 키 설정"
+        echo "  set-naver-id    - Naver API ID 설정"
+        echo "  set-naver-secret- Naver API Secret 설정"
+        echo "  set-all-keys    - 모든 API 키 설정 (대화형)"
+        echo ""
+        echo "예시:"
+        echo "  ./deploy.sh set-key YOUR_GEMINI_KEY"
+        echo "  ./deploy.sh set-naver-id YOUR_NAVER_ID"
+        echo "  ./deploy.sh set-naver-secret YOUR_NAVER_SECRET"
+        echo "  ./deploy.sh set-all-keys"
         exit 1
         ;;
 esac
