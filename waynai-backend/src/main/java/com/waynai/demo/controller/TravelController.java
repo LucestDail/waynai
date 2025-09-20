@@ -20,27 +20,27 @@ public class TravelController {
     private final TravelService travelService;
 
     /**
-     * 여행 계획 생성 (스트림)
+     * 여행 계획 생성 (스트림) - 네이버 검색 포함
      * @param query 사용자 입력 (지역, 키워드, 또는 둘 다)
-     * @return 여행 계획 스트림
+     * @return 여행 계획 스트림 (네이버 검색 결과 포함)
      */
     @GetMapping(value = "/plan", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> generateTravelPlan(@RequestParam String query) {
-        log.info("여행 계획 생성 요청: {}", query);
-        return travelService.generateTravelPlan(query)
+        log.info("여행 계획 생성 요청 (네이버 검색 포함): {}", query);
+        return travelService.generateTravelPlanWithSearch(query)
                 .map(data -> "data: " + data + "\n\n")
-                .doOnComplete(() -> log.info("여행 계획 스트림 완료"));
+                .doOnComplete(() -> log.info("여행 계획 스트림 완료 (네이버 검색 포함)"));
     }
 
     /**
-     * 여행 계획 생성 (POST 방식)
+     * 여행 계획 생성 (POST 방식) - 네이버 검색 포함
      * @param request 여행 요청
-     * @return 여행 계획 스트림
+     * @return 여행 계획 스트림 (네이버 검색 결과 포함)
      */
     @PostMapping(value = "/plan", produces = MediaType.TEXT_PLAIN_VALUE)
     public Flux<String> generateTravelPlanPost(@RequestBody TravelRequest request) {
-        log.info("여행 계획 생성 요청 (POST): {}", request);
-        return travelService.generateTravelPlan(request.getQuery());
+        log.info("여행 계획 생성 요청 (POST, 네이버 검색 포함): {}", request);
+        return travelService.generateTravelPlanWithSearch(request.getQuery());
     }
 
     /**
