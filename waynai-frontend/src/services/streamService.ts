@@ -4,7 +4,7 @@
  */
 export class StreamService {
   private static instance: StreamService;
-  private readonly API_BASE_URL = 'http://localhost:8080';
+  private readonly API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://3.35.206.187:8080';
 
   private constructor() {}
 

@@ -107,7 +107,7 @@ const handleSearch = async () => {
     
     // HTTP 요청과 프로그레스바 시뮬레이션을 병렬로 실행
     console.log('여행 계획 요청 시작:', searchQuery.value);
-    const response = await fetch(`http://localhost:8080/api/travel/plan?query=${encodeURIComponent(searchQuery.value)}`);
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://3.35.206.187:8080'}/api/travel/plan?query=${encodeURIComponent(searchQuery.value)}`);
     
     // 프로그레스바 시뮬레이션 중단
     clearInterval(progressInterval);
