@@ -75,8 +75,19 @@ public class TouristApiClient {
             
             return response;
             
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            log.error("API 호출 실패 (네트워크/SSL 오류) - 지역코드: {}, 시군구코드: {}, URL: {}", areaCode, sigunguCode, uri, e);
+            throw new RuntimeException("관광공사 API 호출 실패 (네트워크 오류): " + e.getMessage(), e);
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("API 호출 실패 (HTTP 오류) - 지역코드: {}, 시군구코드: {}, 상태코드: {}, URL: {}", 
+                     areaCode, sigunguCode, e.getStatusCode(), uri, e);
+            throw new RuntimeException("관광공사 API 호출 실패 (HTTP 오류): " + e.getStatusCode() + " - " + e.getMessage(), e);
+        } catch (org.springframework.web.client.HttpServerErrorException e) {
+            log.error("API 호출 실패 (서버 오류) - 지역코드: {}, 시군구코드: {}, 상태코드: {}, URL: {}", 
+                     areaCode, sigunguCode, e.getStatusCode(), uri, e);
+            throw new RuntimeException("관광공사 API 호출 실패 (서버 오류): " + e.getStatusCode() + " - " + e.getMessage(), e);
         } catch (Exception e) {
-            log.error("API 호출 실패 - 지역코드: {}, 시군구코드: {}, URL: {}", areaCode, sigunguCode, uri, e);
+            log.error("API 호출 실패 (기타 오류) - 지역코드: {}, 시군구코드: {}, URL: {}", areaCode, sigunguCode, uri, e);
             throw new RuntimeException("관광공사 API 호출 실패: " + e.getMessage(), e);
         }
     }
