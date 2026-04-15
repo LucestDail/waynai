@@ -1,109 +1,97 @@
-# WaynAI - AI 기반 여행 파트너
+# WaynAI — AI 여행 플래너
 
-WaynAI는 AI를 활용한 여행 계획 및 관광지 추천 서비스입니다. 사용자의 목적, 취향, 일정에 따라 맞춤형 여행을 설계해드리는 AI 기반 여행 동반자입니다.
+> "당신의 길을 함께 찾는 여행 파트너". Google Gemini AI와 공공 API를 활용하여 맞춤형 여행 계획, 관광 정보, 연관 명소 추천을 제공하는 풀스택 웹 애플리케이션입니다.
 
 ## 주요 기능
 
-- **AI 여행 플래너**: 날짜, 예산, 관심사 입력 → 최적의 여행 일정 자동 생성
-- **현지 맞춤 추천**: 날씨, 시간대, 계절, 현재 트렌드 기반 추천
-- **루트 최적화**: 지도 기반 추천 코스 안내, 교통 정보까지 포함
-- **대화형 여행 가이드**: 여행지 설명, 역사/문화 맥락, 음식 추천 등 GPT 기반 자연어 Q&A
-
-## 프로젝트 구조
-
-- `waynai-backend/`: Spring Boot 기반 백엔드 서버
-- `waynai-frontend/`: Vue.js 기반 프론트엔드 애플리케이션
-
-## 개발 환경 실행
-
-### 백엔드 서버 실행
-```bash
-./start-backend-dev.sh
-```
-- 포트: 8080
-- 개발 모드로 실행 (핫 리로드 지원)
-
-### 프론트엔드 서버 실행
-```bash
-./start-frontend-dev.sh
-```
-- 포트: 5173
-- 개발 모드로 실행 (핫 리로드 지원)
-
-## 운영 환경 실행
-
-### 일반 실행
-```bash
-# 백엔드
-./start-backend-prod.sh
-
-# 프론트엔드
-./start-frontend-prod.sh
-```
-
-### 백그라운드 실행 (서버 배포용)
-```bash
-# 백엔드 (백그라운드)
-./start-backend-prod-nohup.sh
-
-# 프론트엔드 (백그라운드)
-./start-frontend-prod-nohup.sh
-```
-
-### 서버 중지
-```bash
-./stop-servers.sh
-```
-
-## 로그 확인
-
-### 개발 환경
-- 백엔드: 터미널에서 직접 확인
-- 프론트엔드: 터미널에서 직접 확인
-
-### 운영 환경 (백그라운드 실행)
-- 백엔드: `tail -f waynai-backend/backend.log`
-- 프론트엔드: `tail -f waynai-frontend/frontend.log`
-
-## 포트 정보
-
-- 백엔드: 8080
-- 프론트엔드 (개발): 5173
-- 프론트엔드 (운영): 3000
+- **AI 여행 계획** — Gemini 기반 SSE 스트리밍으로 실시간 여행 일정 생성
+- **관광 정보 조회** — 한국관광공사 공공 API 연동, 지역별/키워드별 관광지 탐색
+- **연관 명소 추천** — 선택한 관광지와 연관된 주변 명소 자동 추천
+- **채팅형 가이드** — AI와 대화하며 여행 정보 탐색
+- **네이버 블로그 연동** — 관광지 관련 블로그 리뷰 검색 및 분석
+- **PDF/이미지 저장** — 여행 계획을 PDF 또는 이미지로 내보내기
 
 ## 기술 스택
 
-### 백엔드
-- Java 17+
-- Spring Boot 3.x
-- Maven 3.6+
-- 한국관광공사 TourAPI 연동
+| 구분 | 기술 |
+|------|------|
+| 백엔드 | Java 17, Spring Boot 3.2.0, Spring WebFlux (SSE) |
+| AI | Google Gemini API (gemini-2.0-flash) |
+| 외부 API | 한국관광공사 공공 API, 네이버 검색 API |
+| 프론트엔드 | Vue 3, TypeScript, Vite 6, Pinia, Vue Router |
+| 유틸리티 | html2canvas, jspdf |
+| 빌드 | Maven (백엔드), npm (프론트엔드) |
+
+## 프로젝트 구조
+
+```
+waynai/
+├── waynai-backend/               # Spring Boot 백엔드
+│   ├── pom.xml
+│   └── src/main/
+│       ├── java/com/waynai/demo/
+│       │   ├── controller/       # Travel, LLM, Chat, Naver, Tourist, Health
+│       │   ├── service/          # AI, 관광, 검색 서비스
+│       │   ├── client/           # 외부 API 클라이언트
+│       │   └── config/           # WebConfig, CORS
+│       └── resources/
+│           ├── application.properties
+│           └── prompt/           # LLM 프롬프트 템플릿
+├── waynai-frontend/              # Vue 3 SPA
+│   ├── package.json
+│   └── src/
+│       ├── views/                # Home, TravelPlan, TouristInfo, Recommendations
+│       ├── components/           # 검색, 스트리밍, 내비게이션
+│       ├── services/             # API 호출 (streamService, searchService)
+│       └── stores/               # Pinia (stream, language)
+├── start-backend-dev.sh          # 백엔드 개발 실행
+├── start-frontend-dev.sh         # 프론트엔드 개발 실행
+├── start-*-prod*.sh              # 운영 실행 스크립트
+├── stop-servers.sh               # 서버 중지
+└── setup-env.sh                  # 환경 변수 설정
+```
+
+## 실행
+
+### 사전 요구사항
+- JDK 17+, Maven (또는 `mvnw`)
+- Node.js 18+, npm
+
+### 개발 모드
+```bash
+# 백엔드 (포트 8080)
+./start-backend-dev.sh
+# 또는
+cd waynai-backend && ./mvnw spring-boot:run
+
+# 프론트엔드 (포트 5173)
+./start-frontend-dev.sh
+# 또는
+cd waynai-frontend && npm install && npm run dev
+```
+
+### 운영 모드
+```bash
+./start-backend-prod.sh
+./start-frontend-prod.sh    # npm run build → serve -s dist -l 3000
+```
+
+## 설정
+
+### 백엔드 (`waynai-backend/src/main/resources/application.properties`)
+
+| 항목 | 환경 변수 | 설명 |
+|------|-----------|------|
+| Gemini API 키 | `GEMINI_API_KEY` | AI 기능 필수 |
+| 네이버 API | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` | 블로그 검색 연동 |
+| 공공 API | properties 내 `serviceKey` | 한국관광공사 API |
 
 ### 프론트엔드
-- Vue.js 3.x
-- TypeScript
-- Pinia (상태 관리)
-- Vite (빌드 도구)
 
-## 사전 요구사항
+```bash
+VITE_API_BASE_URL=http://localhost:8080 npm run dev
+```
 
-- Java 17+
-- Node.js 18+
-- Maven 3.6+
-- npm 또는 yarn
+## 라이선스
 
-## 사용법
-
-1. **여행 계획 생성**: 홈 화면에서 여행하고 싶은 곳이나 키워드를 입력
-2. **AI 분석**: AI가 사용자 입력을 분석하고 관광지 정보를 검색
-3. **맞춤형 여행 계획**: 개인화된 여행 일정과 추천 코스를 제공
-4. **WanynAI 소개**: 우측 하단 "WanynAI란?" 버튼을 클릭하여 서비스 소개 확인
-
-## 브랜드 컨셉
-
-**"당신의 길을 함께 찾는 여행 파트너, WaynAI"**
-
-- **Way**: 길, 방향, 여정 — 여행의 시작과 끝을 모두 포괄
-- **AI**: 인공지능 — 사용자의 취향과 상황에 맞춘 맞춤형 여행 안내자
-
-WaynAI는 단순한 정보 검색 툴이 아닌, 여행자의 목적, 취향, 일정, 감성에 따라 여정을 설계해주는 AI 기반 여행 동반자입니다.
+MIT
