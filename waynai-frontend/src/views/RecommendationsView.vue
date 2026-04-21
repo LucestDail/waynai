@@ -197,343 +197,212 @@ const selectCategory = (categoryId: string) => {
 </script>
 
 <style scoped>
+/* ========== RecommendationsView — Material Design 3 ========== */
 .recommendations-view {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  padding: 2rem 1rem;
-  transition: background 0.3s ease;
+  min-height: calc(100vh - 64px);
+  background: var(--m3-background);
+  padding: 2.5rem 1.25rem 4rem;
+  color: var(--m3-on-background);
 }
 
-/* 다크모드에서 추천 배경 */
-.dark .recommendations-view {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
+.container { max-width: 1200px; margin: 0 auto; }
 
 .header {
   text-align: center;
-  margin-bottom: 3rem;
-  color: white;
+  margin-bottom: 2.5rem;
+  padding: 2rem 1rem 1.5rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--m3-primary-container) 60%, var(--m3-background)) 0%,
+    var(--m3-background) 100%
+  );
+  border-radius: var(--m3-shape-xl);
 }
-
 .title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font: var(--m3-display-small);
+  color: var(--m3-on-surface);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.01em;
 }
-
 .subtitle {
-  font-size: 1.2rem;
-  opacity: 0.9;
-  color: #e0e7ff;
+  font: var(--m3-body-large);
+  color: var(--m3-on-surface-variant);
+  margin: 0;
 }
 
 .content-section {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  transition: background 0.3s ease;
+  background: var(--m3-surface-container-low);
+  border-radius: var(--m3-shape-xl);
+  padding: clamp(1.5rem, 2.5vw, 2.5rem);
+  box-shadow: var(--m3-elev-1);
 }
 
-/* 다크모드에서 콘텐츠 섹션 */
-.dark .content-section {
-  background: #1e293b;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-}
-
+/* Filter row */
 .filter-section {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
-  flex-wrap: wrap;
+  padding: 1.25rem;
+  background: var(--m3-surface-container);
+  border-radius: var(--m3-shape-lg);
 }
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 150px;
-}
-
+.filter-group { display: flex; flex-direction: column; gap: 0.375rem; }
 .filter-label {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 0.9rem;
+  font: var(--m3-label-medium);
+  color: var(--m3-on-surface-variant);
 }
-
 .filter-select {
-  padding: 0.75rem;
-  border: 2px solid #e1e8ed;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: var(--m3-shape-sm);
+  background: var(--m3-surface-container-lowest);
+  color: var(--m3-on-surface);
+  font: var(--m3-body-medium);
+  transition: border-color var(--m3-motion-short), box-shadow var(--m3-motion-short);
 }
-
+.filter-select:hover { border-color: var(--m3-outline); }
 .filter-select:focus {
   outline: none;
-  border-color: #3498db;
-}
-
-/* 다크모드에서 필터 선택 */
-.dark .filter-select {
-  background: #1e293b;
-  border-color: #475569;
-  color: #f1f5f9;
-}
-
-.dark .filter-select:focus {
-  border-color: #60a5fa;
+  border-color: var(--m3-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--m3-primary) 18%, transparent);
 }
 
 .section-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
+  font: var(--m3-title-large);
+  color: var(--m3-on-surface);
+  margin: 0 0 1.25rem;
 }
 
-.categories-section {
-  margin-bottom: 3rem;
-}
-
+.categories-section { margin-bottom: 2.5rem; }
 .category-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
 }
 
+/* M3 Filled card (tonal) */
 .category-card {
-  background: #f8fafc;
-  border: 2px solid #e1e8ed;
-  border-radius: 12px;
+  background: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  border-radius: var(--m3-shape-lg);
   padding: 1.5rem;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: box-shadow var(--m3-motion-medium), transform var(--m3-motion-medium),
+    background var(--m3-motion-medium);
+  position: relative;
+  overflow: hidden;
 }
-
-.category-card:hover {
-  border-color: #667eea;
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+.category-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--m3-motion-short);
+  pointer-events: none;
 }
+.category-card:hover { box-shadow: var(--m3-elev-2); transform: translateY(-2px); }
+.category-card:hover::before { opacity: var(--m3-state-hover); }
 
-/* 다크모드에서 카테고리 카드 */
-.dark .category-card {
-  background: #1e293b;
-  border-color: #475569;
-}
-
-.dark .category-card:hover {
-  border-color: #60a5fa;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-}
-
-.category-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
+.category-icon { font-size: 2.5rem; margin-bottom: 0.75rem; line-height: 1; }
 .category-name {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-  transition: color 0.3s ease;
+  font: var(--m3-title-medium);
+  margin: 0 0 0.25rem;
+  color: inherit;
 }
-
 .category-description {
-  color: #6b7280;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  transition: color 0.3s ease;
+  font: var(--m3-body-medium);
+  color: inherit;
+  opacity: 0.88;
+  margin: 0;
 }
 
-/* 다크모드에서 카테고리 정보 */
-.dark .category-name {
-  color: #f8fafc;
-}
-
-.dark .category-description {
-  color: #cbd5e1;
-}
-
+/* Recommendation cards */
 .recommendations-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
 }
 
+/* M3 Elevated card */
 .recommendation-card {
-  background: white;
-  border: 1px solid #e1e8ed;
-  border-radius: 12px;
+  background: var(--m3-surface-container-low);
+  border-radius: var(--m3-shape-lg);
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+  box-shadow: var(--m3-elev-1);
+  transition: box-shadow var(--m3-motion-medium), transform var(--m3-motion-medium);
+  cursor: pointer;
 }
-
-/* 다크모드에서 추천 카드 */
-.dark .recommendation-card {
-  background: #1e293b;
-  border: 1px solid #475569;
-}
-
 .recommendation-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--m3-elev-3);
+  transform: translateY(-3px);
 }
 
 .card-image {
-  height: 150px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  height: 140px;
+  background: linear-gradient(
+    135deg,
+    var(--m3-primary-container) 0%,
+    color-mix(in srgb, var(--m3-tertiary-container) 80%, var(--m3-primary-container)) 100%
+  );
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.3s ease;
 }
+.image-placeholder { font-size: 3.5rem; line-height: 1; }
 
-/* 다크모드에서 카드 이미지 */
-.dark .card-image {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-}
-
-.image-placeholder {
-  font-size: 4rem;
-  color: white;
-}
-
-.card-content {
-  padding: 1.5rem;
-  transition: background 0.3s ease;
-}
-
-/* 다크모드에서 카드 콘텐츠 */
-.dark .card-content {
-  background: #1e293b;
-}
-
+.card-content { padding: 1.25rem; }
 .spot-name {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-  transition: color 0.3s ease;
+  font: var(--m3-title-medium);
+  color: var(--m3-on-surface);
+  margin: 0 0 0.375rem;
 }
-
 .spot-description {
-  color: #6b7280;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-  transition: color 0.3s ease;
+  color: var(--m3-on-surface-variant);
+  font: var(--m3-body-medium);
+  line-height: 1.5;
+  margin: 0 0 0.875rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-
-/* 다크모드에서 관광지 정보 */
-.dark .spot-name {
-  color: #f8fafc;
-}
-
-.dark .spot-description {
-  color: #cbd5e1;
-}
-
 .spot-meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
-
 .spot-location {
-  color: #667eea;
-  font-weight: 500;
-  font-size: 0.9rem;
+  color: var(--m3-primary);
+  font: var(--m3-label-large);
 }
-
 .spot-rating {
-  color: #f59e0b;
-  font-weight: 500;
-  font-size: 0.9rem;
+  color: var(--m3-on-surface-variant);
+  font: var(--m3-label-large);
 }
 
-.spot-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
+.spot-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; }
 .tag {
-  background: #f3f4f6;
-  color: #6b7280;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 500;
+  background: transparent;
+  color: var(--m3-on-surface-variant);
+  border: 1px solid var(--m3-outline-variant);
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--m3-shape-sm);
+  font: var(--m3-label-small);
 }
 
-/* 모바일 대응 */
 @media (max-width: 768px) {
-  .recommendations-view {
-    padding: 1rem 0.5rem;
-  }
-  
-  .title {
-    font-size: 2rem;
-  }
-  
-  .subtitle {
-    font-size: 1rem;
-  }
-  
-  .content-section {
-    padding: 1.5rem;
-    margin: 0 0.5rem;
-  }
-  
-  .filter-section {
-    flex-direction: column;
-  }
-  
-  .filter-group {
-    min-width: auto;
-  }
-  
-  .category-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .recommendations-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .header {
-    margin-bottom: 2rem;
-  }
+  .recommendations-view { padding: 1.25rem 0.75rem 3rem; }
+  .header { margin-bottom: 1.5rem; padding: 1.5rem 1rem; }
+  .content-section { padding: 1.5rem 1.25rem; }
+  .filter-section { grid-template-columns: 1fr; }
+  .category-grid, .recommendations-grid { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 480px) {
-  .title {
-    font-size: 1.8rem;
-  }
-  
-  .content-section {
-    padding: 1rem;
-  }
-  
-  .category-card {
-    padding: 1rem;
-  }
-  
-  .recommendation-card .card-content {
-    padding: 1rem;
-  }
+  .content-section { padding: 1.25rem 1rem; border-radius: var(--m3-shape-lg); }
+  .category-card { padding: 1.25rem; }
+  .card-content { padding: 1rem; }
 }
 </style> 

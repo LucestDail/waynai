@@ -144,430 +144,226 @@
 </script>
 
 <style scoped>
+/* ========== AboutView — Material Design 3 ========== */
 .about {
-  min-height: 100vh;
+  min-height: calc(100vh - 64px);
+  background: var(--m3-background);
+  color: var(--m3-on-background);
 }
 
 .hero-section {
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  padding: 6rem 2rem 4rem;
+  background: linear-gradient(
+    180deg,
+    var(--m3-primary-container) 0%,
+    color-mix(in srgb, var(--m3-primary-container) 40%, var(--m3-background)) 100%
+  );
+  padding: clamp(3rem, 8vw, 6rem) 2rem clamp(2.5rem, 6vw, 4rem);
   text-align: center;
-  color: white;
+  color: var(--m3-on-primary-container);
 }
 
 .hero-title {
-  font-size: 3.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font: var(--m3-display-medium);
+  color: var(--m3-on-primary-container);
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.015em;
 }
 
 .hero-subtitle {
-  font-size: 1.25rem;
-  opacity: 0.9;
-  color: #e0e7ff;
+  font: var(--m3-title-medium);
+  color: var(--m3-on-primary-container);
+  opacity: 0.88;
+  margin: 0;
 }
 
 .content-section {
-  padding: 4rem 2rem;
-  background: #f8fafc;
-  transition: background 0.3s ease;
+  padding: clamp(2.5rem, 5vw, 4rem) 1.5rem;
+  background: var(--m3-background);
 }
 
-/* 다크모드에서 콘텐츠 섹션 */
-.dark .content-section {
-  background: #0f172a;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
+.container { max-width: 1200px; margin: 0 auto; }
 
 .section-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #1e3c72;
-  margin-bottom: 2rem;
+  font: var(--m3-headline-medium);
+  color: var(--m3-on-surface);
+  margin: 0 0 1.75rem;
   text-align: center;
+  letter-spacing: -0.01em;
 }
 
-.brand-story {
-  margin-bottom: 4rem;
+/* Shared card pattern */
+.brand-story,
+.concept-section,
+.features-section,
+.target-section,
+.slogan-section,
+.brand-style-section {
+  margin-bottom: 3rem;
 }
 
 .story-content {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 3rem;
+  gap: 2.5rem;
   align-items: center;
-  background: white;
-  padding: 3rem;
-  border-radius: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  transition: background 0.3s ease;
-}
-
-/* 다크모드에서 스토리 콘텐츠 */
-.dark .story-content {
-  background: #1e293b;
+  background: var(--m3-surface-container-low);
+  padding: clamp(1.75rem, 3vw, 2.5rem);
+  border-radius: var(--m3-shape-xl);
+  box-shadow: var(--m3-elev-1);
 }
 
 .story-text h3 {
-  font-size: 1.5rem;
-  color: #1e3c72;
-  margin-bottom: 1rem;
-  transition: color 0.3s ease;
+  font: var(--m3-title-large);
+  color: var(--m3-primary);
+  margin: 0 0 0.75rem;
 }
-
-.story-text p {
-  color: #6b7280;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 스토리 텍스트 */
-.dark .story-text h3 {
-  color: #f8fafc;
-}
-
-.dark .story-text p {
-  color: #cbd5e1;
-}
-
-.story-text ul {
-  margin: 1rem 0;
-  padding-left: 1.5rem;
-}
-
+.story-text p,
 .story-text li {
-  color: #6b7280;
+  color: var(--m3-on-surface-variant);
+  font: var(--m3-body-large);
   line-height: 1.6;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
+.story-text ul { margin: 0.75rem 0; padding-left: 1.25rem; }
+.story-text strong { color: var(--m3-on-surface); font-weight: 600; }
 
-.story-visual {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.brand-logo {
-  text-align: center;
-}
-
+.story-visual { display: flex; justify-content: center; align-items: center; }
+.brand-logo { text-align: center; }
 .logo-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
+  background: var(--m3-primary);
+  color: var(--m3-on-primary);
+  border-radius: var(--m3-shape-lg);
   padding: 1rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1rem;
-  transition: background 0.3s ease;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--m3-elev-2);
 }
-
-/* 다크모드에서 로고 아이콘 */
-.dark .logo-icon {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-}
-
-.logo-icon svg {
-  color: white;
-}
-
+.logo-icon svg { color: currentColor; }
 .brand-logo h3 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1e3c72;
+  font: var(--m3-headline-small);
+  color: var(--m3-on-surface);
   margin: 0;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 브랜드 로고 */
-.dark .brand-logo h3 {
-  color: #f8fafc;
-}
-
-.concept-section {
-  margin-bottom: 4rem;
 }
 
 .concept-card {
-  background: white;
-  padding: 3rem;
-  border-radius: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  background: var(--m3-tertiary-container);
+  color: var(--m3-on-tertiary-container);
+  padding: clamp(1.75rem, 3vw, 2.5rem);
+  border-radius: var(--m3-shape-xl);
+  box-shadow: var(--m3-elev-1);
   display: flex;
   align-items: center;
-  gap: 2rem;
-  transition: background 0.3s ease;
+  gap: 1.5rem;
 }
-
-/* 다크모드에서 컨셉 카드 */
-.dark .concept-card {
-  background: #1e293b;
-}
-
-.concept-icon {
-  font-size: 3rem;
-  flex-shrink: 0;
-}
-
+.concept-icon { font-size: 3rem; flex-shrink: 0; line-height: 1; }
 .concept-content h3 {
-  font-size: 1.5rem;
-  color: #1e3c72;
-  margin-bottom: 1rem;
-  transition: color 0.3s ease;
+  font: var(--m3-title-large);
+  color: inherit;
+  margin: 0 0 0.5rem;
 }
-
 .concept-content p {
-  color: #6b7280;
+  color: inherit;
+  opacity: 0.92;
+  font: var(--m3-body-large);
   line-height: 1.6;
   margin: 0;
-  transition: color 0.3s ease;
 }
 
-/* 다크모드에서 컨셉 콘텐츠 */
-.dark .concept-content h3 {
-  color: #f8fafc;
-}
-
-.dark .concept-content p {
-  color: #cbd5e1;
-}
-
-.features-section {
-  margin-bottom: 4rem;
-}
-
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-}
-
-.feature-item {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  text-align: center;
-  transition: transform 0.3s ease, background 0.3s ease;
-}
-
-/* 다크모드에서 기능 아이템 */
-.dark .feature-item {
-  background: #1e293b;
-}
-
-.feature-item:hover {
-  transform: translateY(-4px);
-}
-
-.feature-icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-}
-
-.feature-item h4 {
-  font-size: 1.25rem;
-  color: #1e3c72;
-  margin-bottom: 0.5rem;
-  transition: color 0.3s ease;
-}
-
-.feature-item p {
-  color: #6b7280;
-  line-height: 1.5;
-  margin: 0;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 기능 아이템 텍스트 */
-.dark .feature-item h4 {
-  color: #f8fafc;
-}
-
-.dark .feature-item p {
-  color: #cbd5e1;
-}
-
-.target-section {
-  margin-bottom: 4rem;
-}
-
+.features-grid,
 .target-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
 }
 
+.feature-item,
 .target-card {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  background: var(--m3-surface-container-low);
+  padding: 1.75rem;
+  border-radius: var(--m3-shape-lg);
+  box-shadow: var(--m3-elev-1);
   text-align: center;
-  transition: transform 0.3s ease, background 0.3s ease;
+  transition: box-shadow var(--m3-motion-medium), transform var(--m3-motion-medium);
 }
+.feature-item:hover,
+.target-card:hover { box-shadow: var(--m3-elev-2); transform: translateY(-2px); }
 
-.target-card:hover {
-  transform: translateY(-4px);
-}
-
+.feature-icon,
 .target-icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
+  font-size: 2.25rem;
+  margin-bottom: 0.75rem;
+  line-height: 1;
 }
-
+.feature-item h4,
 .target-card h4 {
-  font-size: 1.25rem;
-  color: #1e3c72;
-  margin-bottom: 0.5rem;
-  transition: color 0.3s ease;
+  font: var(--m3-title-medium);
+  color: var(--m3-on-surface);
+  margin: 0 0 0.375rem;
 }
-
+.feature-item p,
 .target-card p {
-  color: #6b7280;
+  color: var(--m3-on-surface-variant);
+  font: var(--m3-body-medium);
   line-height: 1.5;
   margin: 0;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 타겟 카드 */
-.dark .target-card {
-  background: #1e293b;
-}
-
-.dark .target-card h4 {
-  color: #f8fafc;
-}
-
-.dark .target-card p {
-  color: #cbd5e1;
-}
-
-.slogan-section {
-  margin-bottom: 4rem;
 }
 
 .slogan-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
 }
-
 .slogan-item {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 2rem;
-  border-radius: 16px;
+  background: var(--m3-primary);
+  color: var(--m3-on-primary);
+  padding: 1.75rem;
+  border-radius: var(--m3-shape-lg);
   text-align: center;
-  font-size: 1.125rem;
-  font-weight: 500;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, background 0.3s ease;
+  font: var(--m3-title-medium);
+  box-shadow: var(--m3-elev-1);
+  transition: box-shadow var(--m3-motion-medium), transform var(--m3-motion-medium);
 }
-
-/* 다크모드에서 슬로건 아이템 */
-.dark .slogan-item {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-}
-
-.slogan-item:hover {
-  transform: translateY(-4px);
-}
-
-.brand-style-section {
-  margin-bottom: 2rem;
-}
+.slogan-item:nth-child(2) { background: var(--m3-secondary-container); color: var(--m3-on-secondary-container); }
+.slogan-item:nth-child(3) { background: var(--m3-tertiary); color: var(--m3-on-tertiary); }
+.slogan-item:nth-child(4) { background: var(--m3-tertiary-container); color: var(--m3-on-tertiary-container); }
+.slogan-item:hover { box-shadow: var(--m3-elev-3); transform: translateY(-3px); }
 
 .style-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
 }
-
 .style-item {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  transition: background 0.3s ease;
+  background: var(--m3-surface-container-low);
+  padding: 1.75rem;
+  border-radius: var(--m3-shape-lg);
+  box-shadow: var(--m3-elev-1);
 }
-
 .style-item h4 {
-  font-size: 1.25rem;
-  color: #1e3c72;
-  margin-bottom: 0.5rem;
-  transition: color 0.3s ease;
+  font: var(--m3-title-medium);
+  color: var(--m3-primary);
+  margin: 0 0 0.375rem;
 }
-
 .style-item p {
-  color: #6b7280;
+  color: var(--m3-on-surface-variant);
+  font: var(--m3-body-medium);
   line-height: 1.5;
   margin: 0;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 스타일 아이템 */
-.dark .style-item {
-  background: #1e293b;
-}
-
-.dark .style-item h4 {
-  color: #f8fafc;
-}
-
-.dark .style-item p {
-  color: #cbd5e1;
 }
 
 @media (max-width: 768px) {
-  .hero-section {
-    padding: 3rem 1rem;
-  }
-
-  .hero-title {
-    font-size: 2.5rem;
-  }
-
-  .content-section {
-    padding: 2rem 1rem;
-  }
-
-  .section-title {
-    font-size: 2rem;
-  }
-
+  .hero-section { padding: 2.5rem 1.25rem 2rem; }
+  .content-section { padding: 2rem 1rem; }
   .story-content {
     grid-template-columns: 1fr;
-    gap: 2rem;
-    padding: 2rem;
+    gap: 1.5rem;
   }
-
-  .concept-card {
-    flex-direction: column;
-    text-align: center;
-    padding: 2rem;
-  }
-
+  .concept-card { flex-direction: column; text-align: center; }
   .features-grid,
-  .target-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .slogan-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .style-grid {
-    grid-template-columns: 1fr;
-  }
+  .target-grid,
+  .slogan-grid,
+  .style-grid { grid-template-columns: 1fr; }
 }
 </style>

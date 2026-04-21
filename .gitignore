@@ -1,1 +1,23 @@
+# Env / Secrets (절대 커밋 금지)
+.env
+.env.*
+!.env.example
+*.local
+/key/
+/keys/
+secrets/
+
+# IDE
 /.vscode
+/.idea
+
+# OS
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Python (legacy references)
+__pycache__/
+*.pyc

@@ -34,12 +34,9 @@ onMounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  transition: background 0.3s ease;
-}
-
-.dark #app {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: var(--m3-background);
+  color: var(--m3-on-background);
+  transition: background var(--m3-motion-medium), color var(--m3-motion-medium);
 }
 
 .main {
@@ -49,12 +46,11 @@ onMounted(() => {
 }
 
 .footer {
-  background: rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem 0;
+  background: var(--m3-surface-container-low);
+  border-top: 1px solid var(--m3-outline-variant);
+  padding: 1.25rem 0;
   margin-top: auto;
-  transition: background 0.3s ease;
+  transition: background var(--m3-motion-medium), border-color var(--m3-motion-medium);
 }
 
 .footer-container {
@@ -65,19 +61,9 @@ onMounted(() => {
 }
 
 .footer p {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.875rem;
+  color: var(--m3-on-surface-variant);
+  font: var(--m3-body-small);
   margin: 0;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 푸터 */
-.dark .footer {
-  background: rgba(0, 0, 0, 0.3);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.dark .footer p {
-  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.02em;
 }
 </style>

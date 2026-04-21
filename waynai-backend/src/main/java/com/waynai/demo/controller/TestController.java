@@ -457,14 +457,15 @@ public class TestController {
         
         try {
             log.info("=== Gemini 클라이언트 초기화 테스트 시작 ===");
-            
-            // Gemini 클라이언트 초기화 시도
-            geminiApiClient.initializeClient();
-            
+
+            // 핫스왑 라우터 기반으로 교체됨. 여기서는 가벼운 ping 호출로 체인 동작 여부만 확인.
+            String text = geminiApiClient.generateText("ping").block();
+
             result.put("success", true);
-            result.put("message", "Gemini 클라이언트 초기화 성공");
+            result.put("message", "Gemini 호출 성공 (hot-swap 체인)");
+            result.put("sample", text == null ? null : text.substring(0, Math.min(80, text.length())));
             result.put("timestamp", System.currentTimeMillis());
-            
+
             log.info("=== Gemini 클라이언트 초기화 테스트 성공 ===");
             
         } catch (Exception e) {

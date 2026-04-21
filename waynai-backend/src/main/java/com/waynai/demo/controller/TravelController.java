@@ -1,11 +1,14 @@
 package com.waynai.demo.controller;
 
+import com.waynai.demo.dto.TravelPlanDto;
+import com.waynai.demo.service.TravelPlanService;
 import com.waynai.demo.service.TravelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * 여행 컨트롤러
@@ -18,6 +21,22 @@ import reactor.core.publisher.Flux;
 public class TravelController {
 
     private final TravelService travelService;
+    private final TravelPlanService travelPlanService;
+
+    /**
+     * 구조화된 여행 계획 생성 (JSON). 프론트 타임라인 UI 전용.
+     */
+    @GetMapping(value = "/plan/structured", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<TravelPlanDto> generateStructuredPlan(@RequestParam String query) {
+        log.info("구조화 여행 계획 생성 요청: {}", query);
+        return travelPlanService.generateStructuredPlan(query);
+    }
+
+    @PostMapping(value = "/plan/structured", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<TravelPlanDto> generateStructuredPlanPost(@RequestBody TravelRequest request) {
+        log.info("구조화 여행 계획 생성 요청 (POST): {}", request);
+        return travelPlanService.generateStructuredPlan(request.getQuery());
+    }
 
     /**
      * 여행 계획 생성 (스트림) - 네이버 검색 포함

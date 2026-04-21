@@ -1,15 +1,19 @@
 package com.waynai.demo.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.waynai.demo.client.GeminiApiClient;
 import com.waynai.demo.dto.IntentAnalysisDto;
 import com.waynai.demo.dto.IntentAnalysisWithSearchDto;
 import com.waynai.demo.dto.NaverBlogSearchDto;
+import com.waynai.demo.dto.TravelPlanDto;
 import com.waynai.demo.util.PromptLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +30,130 @@ public class TravelPlanService {
     private final PromptLoader promptLoader;
     private final TouristInfoService touristInfoService;
     private final RelatedTouristInfoService relatedTouristInfoService;
+    private final IntentAnalysisService intentAnalysisService;
+    private final ObjectMapper objectMapper;
+
+    /**
+     * 구조화된 여행 계획 생성. Gemini 에 JSON 스키마 프롬프트를 전달하고,
+     * 응답에서 JSON 블록을 파싱하여 {@link TravelPlanDto} 로 반환합니다.
+     * 네이버 블로그 RAG 컨텍스트를 함께 활용합니다.
+     */
+    public Mono<TravelPlanDto> generateStructuredPlan(String query) {
+        return intentAnalysisService.analyzeIntentWithSearch(query)
+                .flatMap(result -> {
+                    String context = collectContextWithSearch(result);
+                    String intentInfo = formatIntent(result.getIntentAnalysis(),
+                            result.isHasNaverSearch() && result.getNaverSearchResult() != null
+                                    ? result.getNaverSearchResult().getTotal() : 0);
+                    Map<String, String> variables = new HashMap<>();
+                    variables.put("intent", intentInfo);
+                    variables.put("context", context);
+                    String prompt = promptLoader.getPromptWithVariables("travel_plan_structured", variables);
+                    if (prompt == null) {
+                        log.warn("structured 프롬프트 로드 실패. 텍스트 플랜으로 폴백.");
+                        return fallbackTextPlan(result, "structured 프롬프트를 찾지 못했습니다.");
+                    }
+                    return geminiApiClient.generateText(prompt)
+                            .map(this::extractJson)
+                            .flatMap(json -> {
+                                try {
+                                    TravelPlanDto dto = objectMapper.readValue(json, TravelPlanDto.class);
+                                    if (dto.getItinerary() == null || dto.getItinerary().isEmpty()) {
+                                        log.warn("구조화 응답의 itinerary 가 비어 있음. 텍스트 플랜으로 폴백.");
+                                        return fallbackTextPlan(result, "AI가 itinerary 없이 응답했습니다.");
+                                    }
+                                    return Mono.just(dto);
+                                } catch (Exception e) {
+                                    log.warn("구조화 JSON 파싱 실패 → 텍스트 플랜 폴백: {}", e.getMessage());
+                                    return fallbackTextPlan(result, "JSON 파싱 실패: " + e.getMessage());
+                                }
+                            })
+                            .onErrorResume(e -> {
+                                log.warn("구조화 플랜 생성 실패 → 텍스트 플랜 폴백: {}", e.getMessage());
+                                return fallbackTextPlan(result, "구조화 생성 실패: " + e.getMessage());
+                            });
+                })
+                .onErrorResume(e -> {
+                    log.error("intent 분석 자체 실패. 최소 폴백 DTO 반환: {}", e.getMessage());
+                    TravelPlanDto dto = TravelPlanDto.builder()
+                            .type("travel_plan")
+                            .destination("알 수 없음")
+                            .summary("여행 계획 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.")
+                            .itinerary(new ArrayList<>())
+                            .warnings(new ArrayList<>(List.of("의도 분석 실패: " + e.getMessage())))
+                            .build();
+                    return Mono.just(dto);
+                });
+    }
+
+    /**
+     * 구조화 엔드포인트가 실패하거나 itinerary 가 비었을 때, 텍스트 스트림 결과를
+     * 하나의 문자열로 합쳐 summary 에 담아 반환한다. 프론트에서는 summary 를 그대로
+     * 렌더링하여 사용자가 결과를 볼 수 있도록 한다.
+     */
+    private Mono<TravelPlanDto> fallbackTextPlan(IntentAnalysisWithSearchDto result, String reason) {
+        return generateTravelPlanWithSearch(result)
+                .collectList()
+                .map(chunks -> {
+                    String merged = String.join("", chunks).trim();
+                    IntentAnalysisDto intent = result.getIntentAnalysis();
+                    String destination = (intent != null && intent.getArea() != null)
+                            ? intent.getArea().getName() : "여행지";
+                    List<String> warnings = new ArrayList<>();
+                    warnings.add("구조화(JSON) 응답 생성에 실패하여 텍스트 결과로 대체되었습니다.");
+                    if (reason != null && !reason.isBlank()) {
+                        warnings.add("사유: " + reason);
+                    }
+                    return TravelPlanDto.builder()
+                            .type("travel_plan")
+                            .destination(destination)
+                            .summary(merged.isEmpty()
+                                    ? "AI가 응답을 반환하지 않았습니다. 다시 시도해 주세요."
+                                    : merged)
+                            .itinerary(new ArrayList<>())
+                            .warnings(warnings)
+                            .build();
+                })
+                .onErrorResume(e -> {
+                    log.error("텍스트 폴백 자체 실패: {}", e.getMessage());
+                    TravelPlanDto dto = TravelPlanDto.builder()
+                            .type("travel_plan")
+                            .destination("알 수 없음")
+                            .summary("여행 계획 생성에 실패했습니다.")
+                            .itinerary(new ArrayList<>())
+                            .warnings(new ArrayList<>(List.of(
+                                    "구조화/텍스트 모두 실패: " + e.getMessage(),
+                                    reason != null ? reason : "원인 불명"
+                            )))
+                            .build();
+                    return Mono.just(dto);
+                });
+    }
+
+    private String extractJson(String text) {
+        if (text == null) return "{}";
+        String t = text.trim();
+        if (t.startsWith("```")) {
+            int first = t.indexOf('\n');
+            if (first > 0) t = t.substring(first + 1);
+            if (t.endsWith("```")) t = t.substring(0, t.length() - 3);
+            t = t.trim();
+        }
+        int start = t.indexOf('{');
+        int end = t.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return t.substring(start, end + 1);
+        }
+        return t;
+    }
+
+    private String formatIntent(IntentAnalysisDto intent, int naverCount) {
+        String area = intent != null && intent.getArea() != null ? intent.getArea().getName() : "없음";
+        String keyword = intent != null && intent.getKeyword() != null ? intent.getKeyword() : "없음";
+        String intentName = intent != null ? String.valueOf(intent.getIntent()) : "GENERAL";
+        return String.format("의도=%s, 지역=%s, 키워드=%s, 블로그 후보=%d건",
+                intentName, area, keyword, naverCount);
+    }
 
     /**
      * 여행 계획 생성 (네이버 검색 결과 포함)

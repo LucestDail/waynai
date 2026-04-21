@@ -125,73 +125,55 @@ const getStatusText = () => {
 </script>
 
 <style scoped>
+/* ========== SearchProgress — Material Design 3 ========== */
 .progress-container {
-  max-width: 600px;
+  max-width: 640px;
   margin: 2rem auto;
   padding: 2rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: var(--m3-surface-container-low);
+  border-radius: var(--m3-shape-xl);
+  box-shadow: var(--m3-elev-1);
+  color: var(--m3-on-surface);
 }
 
-.progress-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
+.progress-header { text-align: center; margin-bottom: 1.5rem; }
 .progress-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 0.5rem 0;
+  font: var(--m3-title-large);
+  color: var(--m3-on-surface);
+  margin: 0 0 0.375rem;
 }
-
 .progress-status {
-  font-size: 1rem;
-  color: #3498db;
-  font-weight: 500;
+  font: var(--m3-label-large);
+  color: var(--m3-primary);
 }
 
-.progress-content {
-  margin-bottom: 2rem;
-}
+.progress-content { margin-bottom: 1.5rem; }
 
-/* 단계 표시 */
-.current-step {
-  margin-bottom: 2rem;
-}
-
+.current-step { margin-bottom: 1.75rem; }
 .step-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
-
 .step-dot {
-  width: 12px;
-  height: 12px;
+  width: 12px; height: 12px;
   border-radius: 50%;
-  background-color: #e1e8ed;
-  transition: all 0.3s ease;
+  background: var(--m3-surface-container-highest);
+  transition: background var(--m3-motion-short), transform var(--m3-motion-short);
 }
-
 .step-dot.active {
-  background-color: #3498db;
+  background: var(--m3-primary);
   transform: scale(1.2);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--m3-primary) 18%, transparent);
 }
-
 .step-line {
-  width: 60px;
-  height: 2px;
-  background-color: #e1e8ed;
+  width: 60px; height: 2px;
+  background: var(--m3-surface-container-highest);
   margin: 0 0.5rem;
-  transition: all 0.3s ease;
+  transition: background var(--m3-motion-short);
 }
-
-.step-line.active {
-  background-color: #3498db;
-}
+.step-line.active { background: var(--m3-primary); }
 
 .step-labels {
   display: flex;
@@ -199,231 +181,99 @@ const getStatusText = () => {
   max-width: 300px;
   margin: 0 auto;
 }
-
 .step-label {
-  font-size: 0.9rem;
-  color: #7f8c8d;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  font: var(--m3-label-medium);
+  color: var(--m3-on-surface-variant);
+  transition: color var(--m3-motion-short);
 }
+.step-label.active { color: var(--m3-primary); font-weight: 600; }
 
-.step-label.active {
-  color: #3498db;
-  font-weight: 600;
-}
-
-/* 진행 메시지 */
 .progress-messages {
   max-height: 200px;
   overflow-y: auto;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--m3-surface-container);
+  border-radius: var(--m3-shape-md);
 }
-
 .progress-message {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
+  gap: 0.625rem;
+  padding: 0.375rem 0;
   animation: fadeInUp 0.3s ease;
 }
-
 .message-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  color: #27ae60;
+  width: 20px; height: 20px;
+  color: var(--m3-tertiary);
 }
-
 .loading-dot {
-  width: 8px;
-  height: 8px;
+  width: 8px; height: 8px;
   border-radius: 50%;
-  background-color: #3498db;
+  background: var(--m3-primary);
   animation: pulse 1.5s infinite;
 }
-
 .message-text {
-  font-size: 0.95rem;
-  color: #34495e;
+  font: var(--m3-body-medium);
+  color: var(--m3-on-surface);
   line-height: 1.4;
 }
 
-/* 현재 작업 표시 */
 .current-task {
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  border-left: 4px solid #3498db;
+  padding: 0.875rem 1rem;
+  background: var(--m3-primary-container);
+  color: var(--m3-on-primary-container);
+  border-radius: var(--m3-shape-md);
 }
-
-.task-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
+.task-indicator { display: flex; align-items: center; gap: 0.75rem; }
 .loading-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e1e8ed;
-  border-top: 2px solid #3498db;
+  width: 20px; height: 20px;
+  border: 2px solid color-mix(in srgb, var(--m3-on-primary-container) 24%, transparent);
+  border-top-color: var(--m3-on-primary-container);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 900ms linear infinite;
 }
+.task-text { font: var(--m3-label-large); color: inherit; }
 
-.task-text {
-  font-size: 1rem;
-  color: #2c3e50;
-  font-weight: 500;
-}
-
-
-/* 진행률 바 */
-.progress-bar-container {
-  margin-top: 1.5rem;
-}
-
+.progress-bar-container { margin-top: 1.25rem; }
 .progress-bar {
-  width: 100%;
-  height: 8px;
-  background-color: #e1e8ed;
-  border-radius: 4px;
+  width: 100%; height: 6px;
+  background: var(--m3-surface-container-highest);
+  border-radius: 999px;
   overflow: hidden;
   margin-bottom: 0.5rem;
 }
-
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3498db, #2980b9);
-  border-radius: 4px;
+  background: var(--m3-primary);
+  border-radius: 999px;
   transition: width 0.5s ease;
 }
-
 .progress-text {
   text-align: center;
-  font-size: 0.9rem;
-  color: #7f8c8d;
-  font-weight: 500;
+  font: var(--m3-label-medium);
+  color: var(--m3-on-surface-variant);
 }
 
-/* 애니메이션 */
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
 }
-
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-/* 반응형 */
 @media (max-width: 768px) {
-  .progress-container {
-    margin: 1rem;
-    padding: 1rem;
-  }
-
-  .step-line {
-    width: 40px;
-  }
-
-  .step-labels {
-    max-width: 250px;
-  }
-
-  .step-label {
-    font-size: 0.8rem;
-  }
-}
-
-/* 다크모드 스타일 */
-.dark .progress-container {
-  background: rgba(30, 41, 59, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-}
-
-.dark .progress-title {
-  color: #f8fafc;
-}
-
-.dark .progress-status {
-  color: #60a5fa;
-}
-
-.dark .step-dot {
-  background-color: #374151;
-}
-
-.dark .step-dot.active {
-  background-color: #60a5fa;
-}
-
-.dark .step-line {
-  background-color: #374151;
-}
-
-.dark .step-line.active {
-  background-color: #60a5fa;
-}
-
-.dark .step-label {
-  color: #9ca3af;
-}
-
-.dark .step-label.active {
-  color: #60a5fa;
-}
-
-.dark .message-text {
-  color: #e5e7eb;
-}
-
-.dark .current-task {
-  background-color: #1e293b;
-  border-left-color: #60a5fa;
-}
-
-.dark .task-text {
-  color: #f1f5f9;
-}
-
-.dark .loading-spinner {
-  border-color: #374151;
-  border-top-color: #60a5fa;
-}
-
-.dark .progress-bar {
-  background-color: #374151;
-}
-
-.dark .progress-fill {
-  background: linear-gradient(90deg, #60a5fa, #93c5fd);
-}
-
-.dark .progress-text {
-  color: #9ca3af;
+  .progress-container { margin: 1rem; padding: 1.25rem; }
+  .step-line { width: 40px; }
+  .step-labels { max-width: 260px; }
 }
 </style> 

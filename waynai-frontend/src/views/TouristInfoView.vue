@@ -146,90 +146,80 @@ const searchTouristInfo = async () => {
 </script>
 
 <style scoped>
+/* ========== TouristInfoView — Material Design 3 ========== */
 .tourist-info-view {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  padding: 2rem 1rem;
-  transition: background 0.3s ease;
+  min-height: calc(100vh - 64px);
+  background: var(--m3-background);
+  padding: 2.5rem 1.25rem 4rem;
+  color: var(--m3-on-background);
 }
 
-/* 다크모드에서 관광 정보 배경 */
-.dark .tourist-info-view {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
+.container { max-width: 1200px; margin: 0 auto; }
 
 .header {
   text-align: center;
-  margin-bottom: 3rem;
-  color: white;
+  margin-bottom: 2.5rem;
+  padding: 2rem 1rem 1.5rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--m3-primary-container) 60%, var(--m3-background)) 0%,
+    var(--m3-background) 100%
+  );
+  border-radius: var(--m3-shape-xl);
 }
-
 .title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font: var(--m3-display-small);
+  color: var(--m3-on-surface);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.01em;
 }
-
 .subtitle {
-  font-size: 1.2rem;
-  opacity: 0.9;
-  color: #e0e7ff;
+  font: var(--m3-body-large);
+  color: var(--m3-on-surface-variant);
+  margin: 0;
 }
 
 .search-section {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  transition: background 0.3s ease;
-}
-
-/* 다크모드에서 검색 섹션 */
-.dark .search-section {
-  background: #1e293b;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  background: var(--m3-surface-container-low);
+  border-radius: var(--m3-shape-xl);
+  padding: clamp(1.5rem, 2.5vw, 2.5rem);
+  box-shadow: var(--m3-elev-1);
 }
 
 .search-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
 }
-
-.input-group {
+.input-group, .option-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-
-.input-label {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 1rem;
+.input-label, .option-label {
+  font: var(--m3-label-large);
+  color: var(--m3-on-surface-variant);
 }
 
-.search-input {
+.search-input,
+.option-select {
   width: 100%;
-  padding: 1rem;
-  border: 2px solid #e1e8ed;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: var(--m3-shape-sm);
+  background: var(--m3-surface-container-lowest);
+  color: var(--m3-on-surface);
+  font: var(--m3-body-large);
+  transition: border-color var(--m3-motion-short), box-shadow var(--m3-motion-short);
 }
-
-.search-input:focus {
+.search-input:hover,
+.option-select:hover { border-color: var(--m3-outline); }
+.search-input:focus,
+.option-select:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--m3-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--m3-primary) 18%, transparent);
 }
 
 .search-options {
@@ -238,227 +228,136 @@ const searchTouristInfo = async () => {
   gap: 1rem;
 }
 
-.option-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.option-label {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 0.9rem;
-}
-
-.option-select {
-  padding: 0.75rem;
-  border: 2px solid #e1e8ed;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  transition: border-color 0.3s ease;
-}
-
-.option-select:focus {
-  outline: none;
-  border-color: #3498db;
-}
-
-.search-actions {
-  display: flex;
-  justify-content: center;
-}
+.search-actions { display: flex; justify-content: center; padding-top: 0.5rem; }
 
 .search-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 1rem 2rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 2rem;
+  border-radius: var(--m3-shape-full);
+  background: var(--m3-primary);
+  color: var(--m3-on-primary);
+  font: var(--m3-label-large);
+  letter-spacing: 0.02em;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow var(--m3-motion-short);
 }
-
-/* 다크모드에서 검색 버튼 */
-.dark .search-button {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+.search-button::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--m3-motion-short);
+  pointer-events: none;
 }
+.search-button:hover:not(:disabled) { box-shadow: var(--m3-elev-1); }
+.search-button:hover:not(:disabled)::before { opacity: var(--m3-state-hover); }
+.search-button:active:not(:disabled)::before { opacity: var(--m3-state-pressed); }
+.search-button:disabled { opacity: 0.38; cursor: not-allowed; }
 
-.search-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.search-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.loading-container {
-  text-align: center;
-  padding: 3rem 1rem;
-}
-
+/* Loading */
+.loading-container { text-align: center; padding: 2.5rem 1rem; }
 .loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid #f3f4f6;
-  border-top: 4px solid #667eea;
+  width: 44px; height: 44px;
+  border: 4px solid color-mix(in srgb, var(--m3-primary) 18%, transparent);
+  border-top-color: var(--m3-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+  animation: spin 900ms linear infinite;
+  margin: 0 auto 0.75rem;
 }
+.loading-text { color: var(--m3-on-surface-variant); font: var(--m3-body-large); }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.loading-text {
-  color: #6b7280;
-  font-size: 1.1rem;
-}
-
-.results-section {
-  margin-top: 2rem;
-}
-
+.results-section { margin-top: 2rem; }
 .results-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
+  font: var(--m3-title-large);
+  color: var(--m3-on-surface);
+  margin: 0 0 1.25rem;
 }
 
 .tourist-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
+/* M3 Elevated card */
 .tourist-card {
-  background: white;
-  border: 1px solid #e1e8ed;
-  border-radius: 12px;
+  background: var(--m3-surface-container-low);
+  border-radius: var(--m3-shape-lg);
   padding: 1.5rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+  box-shadow: var(--m3-elev-1);
+  transition: box-shadow var(--m3-motion-medium), transform var(--m3-motion-medium);
+  cursor: pointer;
 }
-
-/* 다크모드에서 관광지 카드 */
-.dark .tourist-card {
-  background: #1e293b;
-  border: 1px solid #475569;
-}
-
 .tourist-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--m3-elev-3);
+  transform: translateY(-2px);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
-
 .spot-name {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2c3e50;
+  font: var(--m3-title-medium);
+  color: var(--m3-on-surface);
   margin: 0;
-  transition: color 0.3s ease;
+  flex: 1;
 }
 
-/* 다크모드에서 관광지 이름 */
-.dark .spot-name {
-  color: #f8fafc;
-}
-
+/* Tonal chip */
 .spot-category {
-  background: #667eea;
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 500;
+  background: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--m3-shape-sm);
+  font: var(--m3-label-medium);
+  flex-shrink: 0;
 }
 
-.card-content {
-  color: #6b7280;
-  transition: color 0.3s ease;
-}
-
-/* 다크모드에서 카드 콘텐츠 */
-.dark .card-content {
-  color: #cbd5e1;
-}
+.card-content { color: var(--m3-on-surface-variant); }
 
 .spot-description {
-  margin-bottom: 1rem;
-  line-height: 1.6;
+  margin-bottom: 0.875rem;
+  line-height: 1.5;
+  font: var(--m3-body-medium);
 }
-
 .spot-details {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.375rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--m3-outline-variant);
 }
-
-.detail-item {
-  font-size: 0.9rem;
-}
+.detail-item { font: var(--m3-body-small); color: var(--m3-on-surface-variant); }
+.detail-item strong { color: var(--m3-on-surface); font-weight: 600; }
 
 .empty-results {
   text-align: center;
   padding: 3rem 1rem;
-  color: #6b7280;
-  font-size: 1.1rem;
+  color: var(--m3-on-surface-variant);
+  font: var(--m3-body-large);
+  background: var(--m3-surface-container);
+  border-radius: var(--m3-shape-lg);
+  margin-top: 1rem;
 }
 
-/* 모바일 대응 */
 @media (max-width: 768px) {
-  .tourist-info-view {
-    padding: 1rem 0.5rem;
-  }
-  
-  .title {
-    font-size: 2rem;
-  }
-  
-  .subtitle {
-    font-size: 1rem;
-  }
-  
-  .search-section {
-    padding: 1.5rem;
-    margin: 0 0.5rem;
-  }
-  
-  .search-options {
-    grid-template-columns: 1fr;
-  }
-  
-  .tourist-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .header {
-    margin-bottom: 2rem;
-  }
+  .tourist-info-view { padding: 1.25rem 0.75rem 3rem; }
+  .header { margin-bottom: 1.5rem; padding: 1.5rem 1rem; }
+  .search-section { padding: 1.5rem 1.25rem; }
+  .search-options { grid-template-columns: 1fr; }
+  .tourist-grid { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 480px) {
-  .title {
-    font-size: 1.8rem;
-  }
-  
-  .search-section {
-    padding: 1rem;
-  }
-  
-  .tourist-card {
-    padding: 1rem;
-  }
+  .search-section { padding: 1.25rem 1rem; border-radius: var(--m3-shape-lg); }
+  .tourist-card { padding: 1.25rem; }
 }
 </style> 

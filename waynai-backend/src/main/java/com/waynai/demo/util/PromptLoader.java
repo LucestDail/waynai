@@ -39,6 +39,9 @@ public class PromptLoader {
             
             // 여행 계획 프롬프트 로드
             loadPrompt("travel_plan", "prompt/travel_plan.txt");
+
+            // 구조화 JSON 여행 계획 프롬프트 로드
+            loadPrompt("travel_plan_structured", "prompt/travel_plan_structured.txt");
             
             log.info("프롬프트 로드 완료: {} 개", prompts.size());
             
