@@ -92,28 +92,88 @@ Vue 3 프로젝트이므로 Vuetify 3 (M3 기반) 또는 커스텀 CSS로 적용
 - [ ] 예산 대비 경비 비교
 - [ ] 경비 절감 제안 ("이 호텔 대신 에어비앤비를 쓰면 20% 절감")
 
-### Phase 3 — 모바일 앱 (6주)
+### Phase 3 — 모바일 앱 (6주) · 진행률 0%
 
-**3.1 Flutter 모바일 앱**
-- [ ] 프로젝트 초기화 (Flutter + Riverpod)
-- [ ] M3 테마 적용 (위 컬러 시스템)
-- [ ] 백엔드 API 연동 (REST + SSE)
-- [ ] 로그인/회원가입
+> 현재 저장소에는 모바일 앱 프로젝트(Flutter/React Native)가 존재하지 않습니다.
+> 기능은 오로지 **백엔드(Spring Boot) + 웹 프론트(Vue)** 만 구현되어 있으며,
+> 이 단계는 착수 전입니다. 본 Phase 는 다음 순서로 선행 작업이 필요합니다.
+>
+> 1. **백엔드 Location API 선행 구현** (GPS 의존 기능의 서버 계약 먼저 확정)
+> 2. **Flutter 앱 스캐폴드** (별도 리포 또는 `waynai/waynai-mobile/`)
+> 3. **GPS 실시간 루프** (근처 관광지/식당 추천, 경로 안내)
+> 4. **여행 중 기능** (오프라인 캐시, 지출 기록)
+> 5. **동행자 공유** (초대 링크, 위치 공유)
 
-**3.2 GPS 기반 실시간 기능**
+**3.0 [선행] 백엔드 Location API 스펙 제안 (완료 전 필수)**
+
+모바일 GPS 기능은 서버에서 **좌표 기반 근처 관광지·식당·POI 조회**를 제공해야 동작합니다.
+관광공사 `locationBasedList1` 엔드포인트를 래핑하는 신규 API를 다음과 같이 추가합니다.
+
+```
+POST /api/gps/nearby
+Content-Type: application/json
+
+{
+  "lat": 35.1587,        // 위도 (required)
+  "lon": 129.1604,       // 경도 (required)
+  "radiusM": 1500,       // 검색 반경(m), 최대 20000 (default 1000)
+  "contentTypeId": 12,   // TourAPI: 12=관광지, 39=음식점, 14=문화시설, 38=쇼핑, 32=숙박 (optional)
+  "limit": 20            // default 20, max 50
+}
+```
+
+응답(예시):
+
+```
+{
+  "source": "tourapi.locationBasedList1",
+  "center": { "lat": 35.1587, "lon": 129.1604 },
+  "radiusM": 1500,
+  "count": 20,
+  "items": [
+    {
+      "contentId": "126508",
+      "title": "해운대해수욕장",
+      "category": "관광지",
+      "contentTypeId": 12,
+      "address": "부산광역시 해운대구 해운대해변로 264",
+      "lat": 35.1587,
+      "lon": 129.1604,
+      "distanceM": 120,
+      "imageUrl": "...",
+      "tel": "051-749-7620"
+    }
+  ]
+}
+```
+
+구현 요건:
+- `TouristInfoService` 에 `locationBasedList1` 메서드 추가(X/Y 좌표 + 반경).
+- 응답은 거리순 정렬, 캐시 60초.
+- 429/5xx 폴백은 상위 3개 인기 스팟으로 대체.
+- SSE 가 아닌 단건 REST (`Flux` 대신 `Mono<NearbyResponse>`).
+
+**3.1 Flutter 모바일 앱** (0%)
+- [ ] 프로젝트 초기화 (Flutter 3.x + Riverpod)
+- [ ] WaynAI 테마 적용 (ocean/terra/sage 팔레트, Cormorant/DM Sans 패밀리)
+- [ ] 백엔드 API 연동 (REST + `/api/travel/plan/stream` SSE)
+- [ ] 로그인/회원가입 (백엔드 인증 모듈 필요 - Phase 2 선행)
+
+**3.2 GPS 기반 실시간 기능** (0%, 3.0 선행 필요)
 - [ ] 현재 위치 추적 (`geolocator`)
-- [ ] 실시간 이동 경로 안내 (Google Maps SDK)
-- [ ] 다음 목적지까지 최적 교통 수단 제안
+- [ ] `POST /api/gps/nearby` 주기 폴링(60-120초) + 이동 트리거(300m 이상 이동 시)
+- [ ] 지도 위 근처 POI 마커 (Google Maps SDK)
+- [ ] 다음 목적지까지 최적 교통 수단 제안 (Directions API)
 - [ ] 주변 맛집/관광지/편의점/약국 실시간 추천
 - [ ] "근처에 추천 맛집이 있어요" 푸시 알림
 
-**3.3 여행 중 기능**
+**3.3 여행 중 기능** (0%)
 - [ ] 오프라인 일정 조회 (로컬 캐시)
 - [ ] 지출 기록 — 카테고리별, 현지 통화 자동 환산
 - [ ] 예산 대비 사용 현황 차트
 - [ ] 긴급 정보 — 대사관, 응급번호, 병원 위치
 
-**3.4 동행자 기능**
+**3.4 동행자 기능** (0%)
 - [ ] 여행 일정 공유 (초대 링크)
 - [ ] 동행자 실시간 위치 공유
 - [ ] 공동 지출 기록 (더치페이 계산)

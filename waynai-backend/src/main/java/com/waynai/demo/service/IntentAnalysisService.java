@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.waynai.demo.client.GeminiApiClient;
 import com.waynai.demo.dto.IntentAnalysisDto;
 import com.waynai.demo.dto.IntentAnalysisWithSearchDto;
+import com.waynai.demo.dto.NaverBlogSearchDto;
 import com.waynai.demo.util.AreaCodeUtil;
 import com.waynai.demo.util.PromptLoader;
 import lombok.RequiredArgsConstructor;
@@ -126,33 +127,33 @@ public class IntentAnalysisService {
      * @return 의도 분석 결과와 네이버 검색 결과
      */
     public Mono<IntentAnalysisWithSearchDto> analyzeIntentWithSearch(String query) {
-        return analyzeIntent(query)
-                .flatMap(intentAnalysis -> {
-                    // 의도가 "none"이거나 "general"인 경우 네이버 검색 수행
-                    if ("none".equals(intentAnalysis.getIntent()) || "general".equals(intentAnalysis.getIntent())) {
-                        log.info("의도 분석 결과가 'none' 또는 'general'이므로 네이버 검색 수행: {}", query);
-                        return naverSearchService.searchBlog(query)
-                                .map(naverResult -> IntentAnalysisWithSearchDto.builder()
-                                        .intentAnalysis(intentAnalysis)
-                                        .naverSearchResult(naverResult)
-                                        .hasNaverSearch(true)
-                                        .build())
-                                .onErrorResume(error -> {
-                                    log.error("네이버 검색 실패", error);
-                                    return Mono.just(IntentAnalysisWithSearchDto.builder()
-                                            .intentAnalysis(intentAnalysis)
-                                            .naverSearchResult(null)
-                                            .hasNaverSearch(false)
-                                            .build());
-                                });
+        // intent 값과 무관하게 네이버 블로그 검색을 항상 병렬로 호출해 RAG 컨텍스트를 확보한다.
+        // (과거에는 intent == none/general 일 때만 호출했으나, 대부분의 실제 질의는 area_keyword 로 분류되어 호출이 빠졌다.)
+        Mono<NaverBlogSearchDto> naverMono = naverSearchService.searchBlog(query)
+                .onErrorResume(error -> {
+                    log.warn("네이버 블로그 검색 실패 (무시하고 진행): {}", error.getMessage());
+                    return Mono.empty();
+                });
+
+        return Mono.zip(
+                    analyzeIntent(query),
+                    naverMono.map(java.util.Optional::of).defaultIfEmpty(java.util.Optional.empty())
+                )
+                .map(tuple -> {
+                    IntentAnalysisDto intentAnalysis = tuple.getT1();
+                    NaverBlogSearchDto naver = tuple.getT2().orElse(null);
+                    boolean has = naver != null && naver.getItems() != null && !naver.getItems().isEmpty();
+                    if (has) {
+                        log.info("네이버 블로그 검색 완료: {}개 결과 (intent={})",
+                                naver.getItems().size(), intentAnalysis.getIntent());
                     } else {
-                        // 의도가 "none"이 아닌 경우 네이버 검색 없이 반환
-                        return Mono.just(IntentAnalysisWithSearchDto.builder()
-                                .intentAnalysis(intentAnalysis)
-                                .naverSearchResult(null)
-                                .hasNaverSearch(false)
-                                .build());
+                        log.info("네이버 블로그 검색 결과 없음 또는 호출 실패 (intent={})", intentAnalysis.getIntent());
                     }
+                    return IntentAnalysisWithSearchDto.builder()
+                            .intentAnalysis(intentAnalysis)
+                            .naverSearchResult(naver)
+                            .hasNaverSearch(has)
+                            .build();
                 })
                 .onErrorResume(error -> {
                     log.error("의도 분석 실패, 네이버 검색으로 대체: {}", query, error);

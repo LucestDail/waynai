@@ -15,8 +15,6 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
-  define: {
-    // 환경변수 정의
-    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || 'http://3.35.206.187:8080')
-  }
+  // NOTE: VITE_API_BASE_URL 은 .env / .env.local / .env.production 로 관리합니다.
+  // 과거 define 으로 운영 IP 를 baked-in 하던 방식은 로컬 개발 시 AWS 로 오요청이 가서 제거했습니다.
 })

@@ -1,40 +1,43 @@
 <template>
-  <header class="header">
-    <div class="header-container">
-      <div class="logo-section">
-        <div class="logo">
-          <div class="logo-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/>
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
-            </svg>
-          </div>
-          <span class="logo-text">WaynAI</span>
-        </div>
-        <p class="tagline">AI가 이끄는 당신만의 여행 길</p>
-      </div>
-      
-      <nav class="nav">
-        <!-- 다크모드 토글 -->
-        <button @click="toggleTheme" class="theme-toggle" :title="isDarkMode ? '라이트 모드로 변경' : '다크 모드로 변경'">
-          <span v-if="isDarkMode" class="theme-icon">🌅</span>
-          <span v-else class="theme-icon">🌙</span>
-        </button>
+  <header class="nav-wrap">
+    <div class="nav-inner">
+      <RouterLink to="/" class="brand">
+        <span class="brand-main">wayn</span><span class="brand-accent">ai</span>
+        <span class="brand-dot" aria-hidden="true"></span>
+      </RouterLink>
+
+      <nav class="nav-links" aria-label="주요 메뉴">
+        <RouterLink to="/" class="nav-link">Home</RouterLink>
+        <RouterLink to="/travel-plan" class="nav-link">여행 계획</RouterLink>
+        <RouterLink to="/tourist-info" class="nav-link">관광지</RouterLink>
+        <RouterLink to="/about" class="nav-link">About</RouterLink>
       </nav>
-      
-      <div class="nav-toggle" @click="toggleMobileMenu">
-        <span></span>
-        <span></span>
-        <span></span>
+
+      <div class="nav-actions">
+        <button
+          @click="toggleTheme"
+          class="theme-toggle"
+          :title="isDarkMode ? '라이트 모드로 변경' : '다크 모드로 변경'"
+        >
+          <span class="theme-icon" aria-hidden="true">{{ isDarkMode ? '☀︎' : '☾' }}</span>
+        </button>
+        <RouterLink to="/travel-plan" class="cta-pill">여행 계획 시작</RouterLink>
       </div>
+
+      <button class="nav-toggle" @click="toggleMobileMenu" aria-label="메뉴 열기">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
     </div>
-    
-    <!-- 모바일 메뉴 -->
+
     <div v-if="isMobileMenuOpen" class="mobile-menu">
-      <!-- 모바일에서는 다크모드 토글만 표시 -->
+      <RouterLink to="/" class="mobile-link" @click="closeMobileMenu">Home</RouterLink>
+      <RouterLink to="/travel-plan" class="mobile-link" @click="closeMobileMenu">여행 계획</RouterLink>
+      <RouterLink to="/tourist-info" class="mobile-link" @click="closeMobileMenu">관광지 정보</RouterLink>
+      <RouterLink to="/about" class="mobile-link" @click="closeMobileMenu">About</RouterLink>
       <button @click="toggleThemeAndClose" class="mobile-theme-toggle">
-        <span v-if="isDarkMode" class="theme-icon">🌅</span>
-        <span v-else class="theme-icon">🌙</span>
+        <span class="theme-icon">{{ isDarkMode ? '☀︎' : '☾' }}</span>
         <span class="theme-text">{{ isDarkMode ? '라이트 모드' : '다크 모드' }}</span>
       </button>
     </div>
@@ -43,21 +46,19 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { RouterLink } from 'vue-router';
 import { useThemeStore } from '@/stores/theme';
 
 const isMobileMenuOpen = ref(false);
 const themeStore = useThemeStore();
-
 const { isDarkMode, toggleTheme } = themeStore;
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value;
 };
-
 const closeMobileMenu = () => {
   isMobileMenuOpen.value = false;
 };
-
 const toggleThemeAndClose = () => {
   toggleTheme();
   closeMobileMenu();
@@ -65,100 +66,131 @@ const toggleThemeAndClose = () => {
 </script>
 
 <style scoped>
-/* M3 Top App Bar */
-.header {
-  background: var(--m3-surface-container-low);
-  border-bottom: 1px solid var(--m3-outline-variant);
+.nav-wrap {
   position: sticky;
   top: 0;
   z-index: 100;
-  transition: background var(--m3-motion-medium), border-color var(--m3-motion-medium),
-    box-shadow var(--m3-motion-medium);
+  background: color-mix(in srgb, var(--wa-cream) 92%, transparent);
+  backdrop-filter: saturate(1.2) blur(12px);
+  border-bottom: 1px solid color-mix(in srgb, var(--wa-sand) 60%, transparent);
+  transition: background 200ms ease, border-color 200ms ease;
 }
-.header:hover { box-shadow: var(--m3-elev-1); }
 
-.header-container {
+.nav-inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0.75rem 1.5rem;
+  padding: 0.875rem 1.75rem;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  min-height: 64px;
+  gap: 1.5rem;
+  min-height: 70px;
 }
 
-.logo-section {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-}
-
-.logo-icon {
-  background: var(--m3-primary);
-  color: var(--m3-on-primary);
-  border-radius: var(--m3-shape-md);
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--m3-motion-short), color var(--m3-motion-short);
-}
-.logo-icon svg { color: currentColor; }
-
-.logo-text {
-  font: var(--m3-title-large);
-  color: var(--m3-on-surface);
-  letter-spacing: -0.01em;
-}
-
-.tagline {
-  font: var(--m3-label-medium);
-  color: var(--m3-on-surface-variant);
-  margin: 0;
-  padding-left: 0.125rem;
-  letter-spacing: 0.01em;
-}
-
-.nav {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* M3 Icon button (circular, 40px) */
-.theme-toggle {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--m3-shape-full);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--m3-on-surface-variant);
-  transition: background var(--m3-motion-short), color var(--m3-motion-short);
+.brand {
   position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.125rem;
+  font-family: var(--wa-font-serif);
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--wa-ocean);
+  text-decoration: none;
+  line-height: 1;
+}
+.brand-accent {
+  font-style: italic;
+  color: var(--wa-terra);
+}
+.brand-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--wa-amber);
+  margin-left: 4px;
+  transform: translateY(-2px);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+.nav-link {
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--wa-text-mid);
+  text-decoration: none;
+  transition: color 150ms ease;
+  position: relative;
+  padding: 0.25rem 0;
+}
+.nav-link:hover { color: var(--wa-ocean); }
+.nav-link.router-link-exact-active {
+  color: var(--wa-ocean);
+}
+.nav-link.router-link-exact-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  background: var(--wa-terra);
+  border-radius: 999px;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.theme-toggle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 70%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wa-text-mid);
+  cursor: pointer;
+  transition: all 150ms ease;
 }
 .theme-toggle:hover {
-  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
-  color: var(--m3-on-surface);
+  background: var(--wa-sand);
+  color: var(--wa-ocean);
+  transform: translateY(-1px);
 }
-.theme-toggle:active {
-  background: color-mix(in srgb, var(--m3-on-surface) 12%, transparent);
-}
-.theme-icon { font-size: 1.125rem; line-height: 1; }
+.theme-icon { font-size: 1rem; line-height: 1; }
 
-/* Hamburger (mobile) */
+.cta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 999px;
+  background: var(--wa-ocean);
+  color: var(--wa-cream);
+  font-family: var(--wa-font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: background 150ms ease, transform 150ms ease, box-shadow 200ms ease;
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--wa-ocean) 55%, transparent);
+}
+.cta-pill:hover {
+  background: var(--wa-dusk);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px -10px color-mix(in srgb, var(--wa-ocean) 65%, transparent);
+}
+
 .nav-toggle {
   display: none;
   flex-direction: column;
@@ -168,63 +200,72 @@ const toggleThemeAndClose = () => {
   cursor: pointer;
   width: 40px;
   height: 40px;
-  border-radius: var(--m3-shape-full);
-  transition: background var(--m3-motion-short);
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  transition: background 150ms ease;
 }
-.nav-toggle:hover { background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent); }
+.nav-toggle:hover { background: var(--wa-sand); }
 .nav-toggle span {
   width: 20px;
   height: 2px;
   border-radius: 2px;
-  background: var(--m3-on-surface-variant);
-  transition: background var(--m3-motion-short);
+  background: var(--wa-ocean);
 }
 
 .mobile-menu {
   display: none;
   flex-direction: column;
-  background: var(--m3-surface-container);
-  border-top: 1px solid var(--m3-outline-variant);
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.25rem 1.25rem;
+  background: var(--wa-cream);
+  border-top: 1px solid color-mix(in srgb, var(--wa-sand) 70%, transparent);
   gap: 0.25rem;
 }
-
+.mobile-link {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  color: var(--wa-text-dark);
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+.mobile-link:hover { background: var(--wa-sand); }
+.mobile-link.router-link-exact-active {
+  background: var(--wa-ocean);
+  color: var(--wa-cream);
+}
 .mobile-theme-toggle {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   background: transparent;
   border: none;
-  color: var(--m3-on-surface);
-  font: var(--m3-label-large);
-  padding: 0.875rem 1rem;
-  border-radius: var(--m3-shape-sm);
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
   cursor: pointer;
-  width: 100%;
-  text-align: left;
-  transition: background var(--m3-motion-short);
+  color: var(--wa-text-dark);
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
 }
-.mobile-theme-toggle:hover {
-  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
-}
-.theme-text { font: var(--m3-label-large); }
+.mobile-theme-toggle:hover { background: var(--wa-sand); }
+.theme-text { font-size: 0.9375rem; }
 
-@media (max-width: 768px) {
-  .header-container {
-    padding: 0.5rem 1rem;
-    min-height: 56px;
-  }
-  .logo-icon { width: 36px; height: 36px; }
-  .logo-text { font: var(--m3-title-medium); }
-  .tagline { display: none; }
-  .nav-toggle { display: flex; }
+@media (max-width: 900px) {
+  .nav-links, .nav-actions { display: none; }
+  .nav-toggle { display: inline-flex; }
   .mobile-menu { display: flex; }
+  .nav-inner { padding: 0.75rem 1rem; min-height: 60px; }
 }
 
-@media (max-width: 480px) {
-  .header-container { padding: 0.5rem 0.75rem; }
-  .logo-icon { width: 32px; height: 32px; }
-  .logo-icon svg { width: 20px; height: 20px; }
-  .logo-text { font: var(--m3-title-medium); font-size: 1.0625rem; }
+.dark .nav-wrap {
+  background: color-mix(in srgb, var(--wa-ocean) 85%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--wa-mist) 20%, transparent);
 }
-</style> 
+.dark .brand { color: var(--wa-cream); }
+.dark .brand-accent { color: var(--wa-amber); }
+.dark .nav-link { color: var(--wa-mist); }
+.dark .nav-link:hover, .dark .nav-link.router-link-exact-active { color: var(--wa-cream); }
+.dark .theme-toggle { border-color: color-mix(in srgb, var(--wa-mist) 30%, transparent); color: var(--wa-mist); }
+.dark .theme-toggle:hover { background: color-mix(in srgb, var(--wa-cream) 8%, transparent); color: var(--wa-cream); }
+</style>

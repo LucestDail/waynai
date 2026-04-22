@@ -7,6 +7,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Gemini API 클라이언트.
@@ -26,6 +27,18 @@ public class GeminiApiClient {
 
     public Mono<String> generateText(String prompt) {
         return router.generateText(prompt)
+                .onErrorResume(e -> {
+                    log.error("Gemini 호출 전체 실패: {}", e.getMessage());
+                    return Mono.just("{\"error\":\"AI 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.\",\"status\":\"error\"}");
+                });
+    }
+
+    /**
+     * 핫스왑 중 최종 선택된 모델명을 콜백으로 노출하는 호출 변형.
+     * SSE 오케스트레이터가 {@code model} 이벤트 푸시용으로 사용합니다.
+     */
+    public Mono<String> generateText(String prompt, Consumer<String> onModelSelected) {
+        return router.generateText(prompt, onModelSelected)
                 .onErrorResume(e -> {
                     log.error("Gemini 호출 전체 실패: {}", e.getMessage());
                     return Mono.just("{\"error\":\"AI 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.\",\"status\":\"error\"}");

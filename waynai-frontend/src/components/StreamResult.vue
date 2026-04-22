@@ -1,43 +1,120 @@
 <template>
   <div class="stream-result">
-    <!-- 로딩 상태는 HomeView에서 처리하므로 여기서는 제거 -->
-
-    <!-- 에러 상태 -->
+    <!-- Error -->
     <div v-if="streamState.error" class="error-container">
-      <div class="error-content">
-        <div class="error-icon">❌</div>
+      <div class="error-icon">!</div>
+      <div>
         <h3 class="error-title">오류가 발생했습니다</h3>
         <p class="error-message">{{ streamState.error }}</p>
-        <button @click="handleRetry" class="retry-button">다시 시도</button>
+      </div>
+      <button @click="handleRetry" class="retry-button">다시 시도</button>
+    </div>
+
+    <!-- Structured plan -->
+    <div v-else-if="plan" class="result-card">
+      <div class="browser-bar" aria-hidden="true">
+        <span class="dot dot-r"></span>
+        <span class="dot dot-y"></span>
+        <span class="dot dot-g"></span>
+        <div class="url-pill">waynai.app / plan / {{ plan.destination || 'trip' }}</div>
+      </div>
+
+      <header class="plan-header">
+        <div class="plan-meta">
+          <span class="eyebrow">AI 여행 계획</span>
+          <h2 class="plan-title">{{ plan.destination || plan.theme || '맞춤 여행' }}</h2>
+          <p class="plan-sub" v-if="plan.summary">{{ plan.summary }}</p>
+        </div>
+        <div class="plan-chips">
+          <span v-if="plan.duration" class="chip">{{ plan.duration }}</span>
+          <span v-if="plan.theme" class="chip">{{ plan.theme }}</span>
+          <span v-if="plan.budget" class="chip">예산 · {{ plan.budget }}</span>
+          <span v-if="streamState.progress.model" class="chip chip-mono">{{ streamState.progress.model }}</span>
+        </div>
+      </header>
+
+      <div class="plan-actions">
+        <button @click="copyToClipboard" class="action-button" :disabled="isCopying">
+          <span v-if="isCopying" class="spinner-mini"></span>
+          <span v-else>클립보드 복사</span>
+        </button>
+        <button @click="downloadPDF" class="action-button primary" :disabled="isGeneratingPDF">
+          <span v-if="isGeneratingPDF" class="spinner-mini"></span>
+          <span v-else>PDF 다운로드</span>
+        </button>
+      </div>
+
+      <ol class="timeline" v-if="plan.itinerary && plan.itinerary.length">
+        <li v-for="(day, idx) in plan.itinerary" :key="idx" class="day-block">
+          <div class="day-mark">
+            <span class="day-number">Day {{ day.day ?? idx + 1 }}</span>
+          </div>
+          <div class="day-body">
+            <h3 class="day-title">{{ day.title || `Day ${day.day ?? idx + 1}` }}</h3>
+            <p v-if="day.overview" class="day-overview">{{ day.overview }}</p>
+
+            <ul class="spot-list" v-if="day.spots && day.spots.length">
+              <li v-for="(spot, i) in day.spots" :key="i" class="spot">
+                <span class="spot-time">{{ spot.visitTime || '—' }}</span>
+                <div class="spot-meat">
+                  <strong class="spot-name">{{ spot.name }}</strong>
+                  <span v-if="spot.address" class="spot-addr">{{ spot.address }}</span>
+                  <span v-if="spot.activity" class="spot-activity">{{ spot.activity }}</span>
+                  <span v-if="spot.notes" class="spot-notes">{{ spot.notes }}</span>
+                </div>
+              </li>
+            </ul>
+
+            <ul class="bullet" v-else-if="day.activities && day.activities.length">
+              <li v-for="(act, i) in day.activities" :key="i">{{ act }}</li>
+            </ul>
+
+            <div class="day-foot" v-if="day.meals || day.estimatedCost || day.transportation">
+              <span v-if="day.transportation"><em>이동</em> {{ day.transportation }}</span>
+              <span v-if="day.meals"><em>식사</em> {{ day.meals }}</span>
+              <span v-if="day.estimatedCost"><em>예산</em> {{ day.estimatedCost }}</span>
+            </div>
+          </div>
+        </li>
+      </ol>
+
+      <section v-if="plan.tips && plan.tips.length" class="tips-block">
+        <h4 class="tips-title">여행 팁</h4>
+        <ul class="bullet">
+          <li v-for="(tip, i) in plan.tips" :key="i">{{ tip }}</li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- Fallback: raw AI text -->
+    <div v-else-if="hasText" class="result-card bubble-card">
+      <div class="browser-bar" aria-hidden="true">
+        <span class="dot dot-r"></span>
+        <span class="dot dot-y"></span>
+        <span class="dot dot-g"></span>
+        <div class="url-pill">waynai · AI stream</div>
+      </div>
+      <div class="plan-actions">
+        <button @click="copyToClipboard" class="action-button" :disabled="isCopying">
+          <span v-if="isCopying" class="spinner-mini"></span>
+          <span v-else>클립보드 복사</span>
+        </button>
+        <button @click="downloadPDF" class="action-button primary" :disabled="isGeneratingPDF">
+          <span v-if="isGeneratingPDF" class="spinner-mini"></span>
+          <span v-else>PDF 다운로드</span>
+        </button>
+      </div>
+      <div class="ai-bubble">
+        <div class="ai-avatar">AI</div>
+        <div class="stream-text" v-html="formattedData"></div>
       </div>
     </div>
 
-    <!-- 데이터 표시 -->
-    <div v-else-if="streamState.currentData && streamState.currentData.trim().length > 0" class="stream-content">
-      <!-- 액션 버튼들 -->
-      <div class="action-buttons">
-        <button @click="copyToClipboard" class="action-button copy-button" :disabled="isCopying">
-          <span v-if="isCopying" class="loading-spinner-small"></span>
-          <span v-else class="button-icon">📋</span>
-          <span class="button-text">{{ isCopying ? '복사 중...' : '복사' }}</span>
-        </button>
-        <button @click="downloadPDF" class="action-button pdf-button" :disabled="isGeneratingPDF">
-          <span v-if="isGeneratingPDF" class="loading-spinner-small"></span>
-          <span v-else class="button-icon">📄</span>
-          <span class="button-text">{{ isGeneratingPDF ? '생성 중...' : 'PDF 다운로드' }}</span>
-        </button>
-      </div>
-      
-      <div class="stream-text" v-html="formattedData"></div>
-    </div>
-
-    <!-- 빈 상태 (데이터도 에러도 없을 때만) -->
+    <!-- Empty -->
     <div v-else class="empty-state">
-      <div class="empty-content">
-        <div class="empty-icon">🗺️</div>
-        <h4 class="empty-title">여행 계획을 생성해보세요</h4>
-        <p class="empty-description">원하는 지역이나 키워드를 입력하면 AI가 맞춤형 여행 계획을 생성해드립니다.</p>
-      </div>
+      <span class="empty-tag">Ready</span>
+      <h4 class="empty-title">여행 계획을 생성해보세요</h4>
+      <p class="empty-desc">한 줄 질의만으로 관광공사·네이버·Gemini 3가 조율된 실시간 계획이 완성됩니다.</p>
     </div>
   </div>
 </template>
@@ -48,7 +125,6 @@ import { useStreamStore } from '@/stores/stream';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-// jsPDF 타입 선언
 declare module 'jspdf' {
   interface jsPDF {
     addImage(imageData: string, format: string, x: number, y: number, width: number, height: number): void;
@@ -64,36 +140,30 @@ const { formatMarkdown } = streamStore;
 const isCopying = ref(false);
 const isGeneratingPDF = ref(false);
 
+const plan = computed(() => streamState.plan);
+const hasText = computed(() => !!streamState.currentData && streamState.currentData.trim().length > 0);
+
 const formattedData = computed(() => {
   if (!streamState.currentData) return '';
   return formatMarkdown(streamState.currentData);
 });
 
 const handleRetry = () => {
-  // 재시도 로직은 부모 컴포넌트에서 처리
   window.location.reload();
 };
 
 const copyToClipboard = async () => {
-  if (!streamState.currentData) return;
-  
+  const source = plan.value ? JSON.stringify(plan.value, null, 2) : streamState.currentData;
+  if (!source) return;
   isCopying.value = true;
-  
   try {
-    // HTML 태그를 제거하고 순수 텍스트만 복사
-    const textContent = stripHtmlTags(streamState.currentData);
-    
-    // 모바일 환경에서 더 안정적인 복사 방법 사용
+    const text = plan.value ? source : stripHtmlTags(source);
     if (navigator.clipboard && window.isSecureContext) {
-      // 최신 브라우저에서 Clipboard API 사용
-      await navigator.clipboard.writeText(textContent);
+      await navigator.clipboard.writeText(text);
     } else {
-      // 구형 브라우저나 모바일에서 fallback 방법 사용
-      await fallbackCopyTextToClipboard(textContent);
+      await fallbackCopyTextToClipboard(text);
     }
-    
-    // 성공 메시지 표시 (간단한 토스트)
-    showToast('여행 계획이 클립보드에 복사되었습니다!');
+    showToast('여행 계획이 클립보드에 복사되었습니다.');
   } catch (error) {
     console.error('복사 실패:', error);
     showToast('복사에 실패했습니다. 다시 시도해주세요.');
@@ -103,62 +173,32 @@ const copyToClipboard = async () => {
 };
 
 const downloadPDF = async () => {
-  if (!streamState.currentData) return;
-  
   isGeneratingPDF.value = true;
-  
   try {
-    // PDF 생성을 위한 HTML 요소 선택
-    const element = document.querySelector('.stream-text') as HTMLElement;
-    if (!element) {
-      throw new Error('PDF 생성할 요소를 찾을 수 없습니다.');
-    }
-    
-    // HTML2Canvas로 캔버스 생성
-    const canvas = await html2canvas(element, {
-      scale: 2, // 고해상도
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      width: element.scrollWidth,
-      height: element.scrollHeight
-    });
-    
-    // PDF 생성
+    const element = (document.querySelector('.timeline') || document.querySelector('.stream-text')) as HTMLElement | null;
+    if (!element) throw new Error('PDF 생성할 요소가 없습니다.');
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#f5f0e8' });
     const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    const imgWidth = 210; // A4 너비
-    const pageHeight = 295; // A4 높이
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const imgWidth = 210;
+    const pageHeight = 295;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     let heightLeft = imgHeight;
-    
     let position = 0;
-    
-    // 첫 페이지 추가
     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
     heightLeft -= pageHeight;
-    
-    // 추가 페이지가 필요한 경우
     while (heightLeft >= 0) {
       position = heightLeft - imgHeight;
       pdf.addPage();
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
     }
-    
-    // PDF 다운로드
-    const fileName = `여행계획_${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `waynai_plan_${new Date().toISOString().split('T')[0]}.pdf`;
     pdf.save(fileName);
-    
-    showToast('PDF가 다운로드되었습니다!');
+    showToast('PDF가 다운로드되었습니다.');
   } catch (error) {
     console.error('PDF 생성 실패:', error);
-    showToast('PDF 생성에 실패했습니다. 다시 시도해주세요.');
+    showToast('PDF 생성에 실패했습니다.');
   } finally {
     isGeneratingPDF.value = false;
   }
@@ -170,589 +210,490 @@ const stripHtmlTags = (html: string): string => {
   return temp.textContent || temp.innerText || '';
 };
 
-// 모바일 환경을 위한 fallback 복사 함수
 const fallbackCopyTextToClipboard = (text: string): Promise<void> => {
   return new Promise((resolve, reject) => {
-    // 임시 textarea 요소 생성
     const textArea = document.createElement('textarea');
     textArea.value = text;
-    
-    // 화면에서 보이지 않도록 설정
-    textArea.style.position = 'fixed';
-    textArea.style.top = '0';
-    textArea.style.left = '0';
-    textArea.style.width = '2em';
-    textArea.style.height = '2em';
-    textArea.style.padding = '0';
-    textArea.style.border = 'none';
-    textArea.style.outline = 'none';
-    textArea.style.boxShadow = 'none';
-    textArea.style.background = 'transparent';
-    textArea.style.opacity = '0';
-    textArea.style.zIndex = '-1';
-    
-    // DOM에 추가
+    textArea.style.cssText = 'position:fixed;top:0;left:0;opacity:0;z-index:-1';
     document.body.appendChild(textArea);
-    
     try {
-      // iOS Safari에서 작동하도록 수정
       textArea.focus();
       textArea.select();
-      
-      // iOS에서 select()가 작동하지 않을 경우를 대비
-      if (textArea.setSelectionRange) {
-        textArea.setSelectionRange(0, 99999);
-      }
-      
-      // 복사 실행
-      const successful = document.execCommand('copy');
-      
-      if (successful) {
-        resolve();
-      } else {
-        reject(new Error('복사 명령이 실패했습니다.'));
-      }
+      if (textArea.setSelectionRange) textArea.setSelectionRange(0, 99999);
+      const ok = document.execCommand('copy');
+      ok ? resolve() : reject(new Error('copy failed'));
     } catch (err) {
       reject(err);
     } finally {
-      // 임시 요소 제거
       document.body.removeChild(textArea);
     }
   });
 };
 
 const showToast = (message: string) => {
-  // 간단한 토스트 메시지 구현
   const toast = document.createElement('div');
   toast.textContent = message;
   toast.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: #4CAF50;
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 10000;
-    font-size: 14px;
-    font-weight: 500;
-    animation: slideIn 0.3s ease-out;
+    position: fixed; top: 24px; right: 24px;
+    background: #1a3a4a; color: #f5f0e8;
+    padding: 12px 20px; border-radius: 12px;
+    box-shadow: 0 12px 30px -12px rgba(26,58,74,0.55);
+    z-index: 10000; font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.875rem;
   `;
-  
-  // 애니메이션 CSS 추가
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-  `;
-  document.head.appendChild(style);
-  
   document.body.appendChild(toast);
-  
-  // 3초 후 제거
-  setTimeout(() => {
-    toast.remove();
-    style.remove();
-  }, 3000);
+  setTimeout(() => toast.remove(), 2800);
 };
 </script>
 
 <style scoped>
-/* ========== StreamResult — Material Design 3 (framing only) ========== */
 .stream-result {
-  max-width: 840px;
-  margin: 0 auto;
-  padding: 1.25rem;
+  max-width: 960px;
+  margin: 2rem auto 0;
+  color: var(--wa-text-dark);
 }
 
-.loading-container { text-align: center; padding: 2.5rem 1.25rem; }
-.loading-spinner {
-  width: 40px; height: 40px;
-  border: 4px solid color-mix(in srgb, var(--m3-primary) 18%, transparent);
-  border-top-color: var(--m3-primary);
-  border-radius: 50%;
-  animation: spin 900ms linear infinite;
-  margin: 0 auto 1rem;
-}
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-.loading-text { font: var(--m3-body-large); color: var(--m3-on-surface-variant); margin: 0; }
-
-/* Error state */
-.error-container {
-  text-align: center;
-  padding: 2.5rem 1.25rem;
-  background: var(--m3-error-container);
-  color: var(--m3-on-error-container);
-  border-radius: var(--m3-shape-xl);
-  margin: 1rem 0;
-}
-.error-content { max-width: 440px; margin: 0 auto; }
-.error-icon { font-size: 3rem; margin-bottom: 1rem; }
-.error-title { font: var(--m3-headline-small); color: inherit; margin: 0 0 0.5rem; }
-.error-message { color: inherit; opacity: 0.9; margin: 0 0 1.25rem; font: var(--m3-body-large); }
-.retry-button {
-  background: var(--m3-error);
-  color: var(--m3-on-error);
-  border: none;
-  min-height: 40px;
-  padding: 0 1.5rem;
-  border-radius: var(--m3-shape-full);
-  cursor: pointer;
-  font: var(--m3-label-large);
-  transition: box-shadow var(--m3-motion-short), filter var(--m3-motion-short);
-}
-.retry-button:hover { box-shadow: var(--m3-elev-1); filter: brightness(1.05); }
-
-/* Result card */
-.stream-content {
-  background: var(--m3-surface-container-low);
-  border-radius: var(--m3-shape-xl);
-  box-shadow: var(--m3-elev-1);
+/* ---- Card frame ---- */
+.result-card {
+  background: var(--wa-cream);
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 55%, transparent);
+  border-radius: 28px;
   overflow: hidden;
-  margin: 1.5rem 0;
-  transition: box-shadow var(--m3-motion-medium);
+  box-shadow: 0 30px 60px -30px color-mix(in srgb, var(--wa-ocean) 40%, transparent);
 }
-.stream-content:hover { box-shadow: var(--m3-elev-2); }
 
-/* Action buttons */
-.action-buttons {
+.browser-bar {
   display: flex;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background: var(--m3-surface-container);
-  border-bottom: 1px solid var(--m3-outline-variant);
-  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: color-mix(in srgb, var(--wa-sand) 65%, var(--wa-cream));
+  border-bottom: 1px solid color-mix(in srgb, var(--wa-sand) 55%, transparent);
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot-r { background: #e27763; }
+.dot-y { background: #e3b34b; }
+.dot-g { background: #87a590; }
+.url-pill {
+  margin-left: auto;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--wa-text-mid);
+  background: var(--wa-warm);
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 55%, transparent);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+/* ---- Plan header ---- */
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 2rem 2rem 1.25rem;
   flex-wrap: wrap;
 }
+.plan-meta { display: flex; flex-direction: column; gap: 0.5rem; max-width: 640px; }
+.eyebrow {
+  font-family: var(--wa-font-sans);
+  font-size: 0.6875rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--wa-terra);
+}
+.plan-title {
+  font-family: var(--wa-font-serif);
+  font-size: clamp(1.75rem, 2vw + 1rem, 2.5rem);
+  color: var(--wa-ocean);
+  letter-spacing: -0.01em;
+  margin: 0;
+  line-height: 1.15;
+}
+.plan-sub {
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  color: var(--wa-text-mid);
+  line-height: 1.55;
+  margin: 0;
+}
 
+.plan-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  background: var(--wa-warm);
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 55%, transparent);
+  font-family: var(--wa-font-sans);
+  font-size: 0.75rem;
+  color: var(--wa-text-dark);
+}
+.chip-mono {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 0.6875rem;
+  background: var(--wa-ocean);
+  color: var(--wa-cream);
+  border-color: var(--wa-ocean);
+}
+
+/* ---- Actions ---- */
+.plan-actions {
+  display: flex;
+  gap: 0.625rem;
+  padding: 0 2rem 1.25rem;
+  flex-wrap: wrap;
+}
 .action-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0 1.25rem;
   min-height: 40px;
-  border: none;
-  border-radius: var(--m3-shape-full);
-  font: var(--m3-label-large);
+  padding: 0 1.25rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--wa-ocean) 25%, transparent);
+  background: var(--wa-warm);
+  color: var(--wa-ocean);
+  font-family: var(--wa-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: box-shadow var(--m3-motion-short);
+  transition: all 150ms ease;
 }
-.action-button::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: currentColor;
-  opacity: 0;
-  transition: opacity var(--m3-motion-short);
-  pointer-events: none;
+.action-button:hover:not(:disabled) { background: var(--wa-ocean); color: var(--wa-cream); }
+.action-button.primary {
+  background: var(--wa-ocean);
+  color: var(--wa-cream);
+  border-color: var(--wa-ocean);
 }
-.action-button:hover:not(:disabled) { box-shadow: var(--m3-elev-1); }
-.action-button:hover:not(:disabled)::before { opacity: var(--m3-state-hover); }
-.action-button:active:not(:disabled)::before { opacity: var(--m3-state-pressed); }
-
-/* M3 Filled tonal */
-.copy-button {
-  background: var(--m3-secondary-container);
-  color: var(--m3-on-secondary-container);
-}
-/* M3 Filled primary */
-.pdf-button {
-  background: var(--m3-primary);
-  color: var(--m3-on-primary);
-}
-.action-button:disabled { opacity: 0.38; cursor: not-allowed; }
-
-.button-icon { font-size: 1rem; }
-.button-text { font: var(--m3-label-large); }
-
-.loading-spinner-small {
-  width: 16px; height: 16px;
-  border: 2px solid color-mix(in srgb, currentColor 24%, transparent);
+.action-button.primary:hover:not(:disabled) { background: var(--wa-dusk); }
+.action-button:disabled { opacity: 0.55; cursor: not-allowed; }
+.spinner-mini {
+  width: 14px;
+  height: 14px;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 900ms linear infinite;
 }
 
-.stream-text {
-  padding: 1.25rem 1.5rem;
-  line-height: 1.55;
-  color: var(--m3-on-surface);
-  font: var(--m3-body-medium);
-}
-
-/* ===== 라이트모드 마크다운 스타일 - 모바일 최적화 ===== */
-.stream-text .markdown-h1 {
-  color: var(--waynai-text-primary);
-  border-bottom: 1px solid #3182ce;
-  padding-bottom: 5px;
-  margin-bottom: 8px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  text-align: center;
+/* ---- Timeline ---- */
+.timeline {
+  list-style: none;
+  padding: 0 2rem 2rem;
+  margin: 0;
   position: relative;
-  transition: color 0.3s ease;
 }
-
-.stream-text .markdown-h1::after {
+.timeline::before {
   content: '';
   position: absolute;
-  bottom: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 25px;
-  height: 1px;
-  background: linear-gradient(90deg, #3182ce, #63b3ed);
-  border-radius: 1px;
-}
-
-.stream-text .markdown-h2 {
-  color: var(--waynai-text-primary);
-  margin-top: 12px;
-  margin-bottom: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  padding: 8px 10px;
-  border-radius: 6px;
-  border-left: 2px solid #3182ce;
-  position: relative;
-  transition: color 0.3s ease;
-}
-
-.stream-text .markdown-h2::before {
-  content: '';
-  position: absolute;
-  left: 0;
   top: 0;
   bottom: 0;
+  left: calc(2rem + 18px);
   width: 2px;
-  background: linear-gradient(180deg, #3182ce, #63b3ed);
-  border-radius: 0 1px 1px 0;
+  background: linear-gradient(180deg, var(--wa-terra) 0%, var(--wa-sage) 100%);
+  border-radius: 999px;
+  opacity: 0.5;
 }
-
-.stream-text .markdown-h3 {
-  color: var(--waynai-text-primary);
-  margin-top: 10px;
-  margin-bottom: 6px;
+.day-block {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 1.25rem;
+  padding: 1.25rem 0;
+  position: relative;
+}
+.day-mark {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.day-number {
+  font-family: var(--wa-font-sans);
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 6px 8px;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  border-left: 2px solid #68d391;
-  transition: color 0.3s ease;
-}
-
-.stream-text .markdown-h4 {
-  color: var(--waynai-text-primary);
-  margin-top: 8px;
-  margin-bottom: 5px;
-  font-size: 0.7rem;
-  font-weight: 600;
-}
-
-.stream-text .markdown-h5, .stream-text .markdown-h6 {
-  color: var(--waynai-text-primary);
-  margin-top: 6px;
-  margin-bottom: 4px;
-  font-size: 0.65rem;
-  font-weight: 600;
-}
-
-.stream-text .markdown-paragraph {
-  color: var(--waynai-text-primary);
-  margin-bottom: 10px;
-  line-height: 1.5;
-}
-
-.stream-text .markdown-bold {
-  color: var(--waynai-text-primary);
-  font-weight: 700;
-}
-
-.stream-text .markdown-italic {
-  color: var(--waynai-text-primary);
-  font-style: italic;
-}
-
-.stream-text .markdown-code {
-  background-color: #f8f9fa;
-  color: #e74c3c;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.7em;
-  border: 1px solid #e9ecef;
-}
-
-.stream-text .markdown-strikethrough {
-  text-decoration: line-through;
-  color: var(--waynai-text-primary);
-}
-
-.stream-text .markdown-link {
-  color: #3498db;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: all 0.3s ease;
-}
-
-.stream-text .markdown-link:hover {
-  color: #2980b9;
-  border-bottom-color: #2980b9;
-}
-
-.stream-text .markdown-list, .stream-text .markdown-ordered-list {
-  margin: 10px 0;
-  padding-left: 0;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  padding: 8px 10px;
-  border-left: 2px solid #4299e1;
-  font-size: 0.8rem;
-}
-
-.stream-text .markdown-list-item {
-  margin: 3px 0;
-  line-height: 1.4;
+  letter-spacing: 0.06em;
+  color: var(--wa-cream);
+  background: var(--wa-ocean);
+  padding: 0.375rem 0.625rem;
+  border-radius: 999px;
   position: relative;
-  padding-left: 15px;
-  font-size: 0.8rem;
+  z-index: 1;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px -3px color-mix(in srgb, var(--wa-ocean) 55%, transparent);
+}
+.day-body {
+  background: var(--wa-warm);
+  border-radius: 20px;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 50%, transparent);
+}
+.day-title {
+  font-family: var(--wa-font-serif);
+  font-size: 1.375rem;
+  color: var(--wa-ocean);
+  margin: 0 0 0.375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.day-overview {
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  color: var(--wa-text-mid);
+  line-height: 1.55;
+  margin: 0 0 0.875rem;
 }
 
-.stream-text .markdown-list-item::before {
-  content: '•';
-  color: #4299e1;
-  font-weight: bold;
-  position: absolute;
-  left: 0;
-  top: 0;
-  font-size: 1em;
+.spot-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-direction: column; gap: 0.625rem; }
+.spot {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  background: var(--wa-cream);
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 45%, transparent);
+}
+.spot-time {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--wa-terra);
+  align-self: flex-start;
+  padding-top: 2px;
+}
+.spot-meat { display: flex; flex-direction: column; gap: 3px; }
+.spot-name {
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  color: var(--wa-text-dark);
+  font-weight: 600;
+}
+.spot-addr, .spot-activity, .spot-notes {
+  font-family: var(--wa-font-sans);
+  font-size: 0.8125rem;
+  color: var(--wa-text-mid);
+  line-height: 1.45;
+}
+.spot-activity { color: var(--wa-sage); }
+
+.day-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px dashed color-mix(in srgb, var(--wa-sand) 70%, transparent);
+  font-family: var(--wa-font-sans);
+  font-size: 0.8125rem;
+  color: var(--wa-text-mid);
+}
+.day-foot em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--wa-ocean);
+  margin-right: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
 }
 
-.stream-text .markdown-ordered-list {
-  counter-reset: item;
-}
+.bullet { list-style: disc; padding-left: 1.25rem; margin: 0.5rem 0 0; font-family: var(--wa-font-sans); font-size: 0.9375rem; color: var(--wa-text-dark); }
+.bullet li { margin: 4px 0; line-height: 1.5; }
 
-.stream-text .markdown-ordered-list .markdown-list-item {
-  display: block;
-  margin: 2px 0;
+.tips-block {
+  margin: 0 2rem 2rem;
+  padding: 1.25rem 1.5rem;
+  background: color-mix(in srgb, var(--wa-sage) 18%, var(--wa-warm));
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--wa-sage) 30%, transparent);
 }
-
-.stream-text .markdown-ordered-list .markdown-list-item:before {
-  content: counter(item) ". ";
-  counter-increment: item;
-  font-weight: bold;
-  color: #3498db;
-  font-size: 1em;
-}
-
-.stream-text .markdown-blockquote {
-  border-left: 3px solid #3498db;
-  background-color: #f8f9fa;
-  margin: 12px 0;
-  padding: 10px 15px;
+.tips-title {
+  font-family: var(--wa-font-serif);
+  font-size: 1.125rem;
+  color: var(--wa-ocean);
+  margin: 0 0 0.5rem;
+  font-weight: 500;
   font-style: italic;
-  color: #5a6c7d;
 }
 
-.stream-text .markdown-hr {
+/* ---- Fallback bubble ---- */
+.ai-bubble {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 0.875rem;
+  padding: 1.5rem 2rem 2rem;
+}
+.ai-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--wa-ocean);
+  color: var(--wa-cream);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--wa-font-serif);
+  font-style: italic;
+  font-weight: 500;
+}
+.stream-text {
+  background: var(--wa-warm);
+  border-radius: 18px;
+  padding: 1.25rem 1.5rem;
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  color: var(--wa-text-dark);
+  line-height: 1.65;
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 45%, transparent);
+}
+.stream-text :deep(.markdown-h1),
+.stream-text :deep(.markdown-h2),
+.stream-text :deep(.markdown-h3) {
+  font-family: var(--wa-font-serif);
+  color: var(--wa-ocean);
+  font-weight: 500;
+  margin: 1rem 0 0.5rem;
+  line-height: 1.25;
+}
+.stream-text :deep(.markdown-h1) { font-size: 1.5rem; }
+.stream-text :deep(.markdown-h2) { font-size: 1.25rem; }
+.stream-text :deep(.markdown-h3) { font-size: 1.0625rem; }
+.stream-text :deep(.markdown-bold) { color: var(--wa-ocean); }
+.stream-text :deep(.markdown-italic) { color: var(--wa-terra); font-style: italic; }
+.stream-text :deep(.markdown-code) {
+  background: var(--wa-cream);
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 55%, transparent);
+  color: var(--wa-terra);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 0.85em;
+}
+.stream-text :deep(.markdown-list),
+.stream-text :deep(.markdown-ordered-list) {
+  background: var(--wa-cream);
+  border-left: 3px solid var(--wa-terra);
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  margin: 0.75rem 0;
+}
+.stream-text :deep(.markdown-blockquote) {
+  background: color-mix(in srgb, var(--wa-sage) 20%, var(--wa-warm));
+  border-left: 3px solid var(--wa-sage);
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  color: var(--wa-text-mid);
+  font-style: italic;
+}
+.stream-text :deep(.markdown-hr) {
   border: none;
-  border-top: 1px solid #ecf0f1;
-  margin: 20px 0;
-  background: linear-gradient(90deg, transparent, #3498db, transparent);
-  height: 1px;
+  border-top: 1px dashed color-mix(in srgb, var(--wa-sand) 70%, transparent);
+  margin: 1.25rem 0;
+}
+.stream-text :deep(.markdown-link) {
+  color: var(--wa-terra);
+  border-bottom: 1px solid color-mix(in srgb, var(--wa-terra) 40%, transparent);
+  text-decoration: none;
 }
 
-.stream-text .markdown-linebreak {
-  line-height: 1.4;
+/* ---- Error ---- */
+.error-container {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--wa-terra) 12%, var(--wa-cream));
+  border: 1px solid color-mix(in srgb, var(--wa-terra) 30%, transparent);
+  border-radius: 20px;
 }
-
-/* 이모지 스타일 */
-.stream-text .emoji {
-  font-size: 1.2em;
-  margin: 0 2px;
-  display: inline-block;
-  transition: transform 0.2s ease;
+.error-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--wa-terra);
+  color: var(--wa-cream);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--wa-font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
 }
-
-.stream-text .emoji:hover {
-  transform: scale(1.1);
+.error-title {
+  font-family: var(--wa-font-serif);
+  font-size: 1.125rem;
+  color: var(--wa-ocean);
+  margin: 0;
+  font-weight: 500;
 }
-
-.stream-text .emoji-calendar { color: #3498db; }
-.stream-text .emoji-money { color: #27ae60; }
-.stream-text .emoji-target { color: #e74c3c; }
-.stream-text .emoji-building { color: #8e44ad; }
-.stream-text .emoji-location { color: #e67e22; }
-.stream-text .emoji-food { color: #f39c12; }
-.stream-text .emoji-transport { color: #16a085; }
-.stream-text .emoji-idea { color: #f1c40f; }
-.stream-text .emoji-map { color: #2c3e50; }
-.stream-text .emoji-checklist { color: #34495e; }
-.stream-text .emoji-note { color: #7f8c8d; }
-.stream-text .emoji-car { color: #e67e22; }
-.stream-text .emoji-hotel { color: #9b59b6; }
-.stream-text .emoji-plane { color: #3498db; }
-.stream-text .emoji-beach { color: #1abc9c; }
-.stream-text .emoji-mountain { color: #27ae60; }
-.stream-text .emoji-cherry { color: #e91e63; }
-.stream-text .emoji-bento { color: #ff9800; }
-.stream-text .emoji-traditional { color: #795548; }
-
-/* ===== 다크모드 스타일 (배경 및 특수 요소만) ===== */
-.dark .stream-content {
-  background: rgba(30, 41, 59, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+.error-message {
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  color: var(--wa-text-mid);
+  margin: 4px 0 0;
 }
-
-.dark .stream-content:hover {
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+.retry-button {
+  padding: 0.625rem 1.25rem;
+  border-radius: 999px;
+  background: var(--wa-terra);
+  color: var(--wa-cream);
+  border: none;
+  font-family: var(--wa-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
 }
+.retry-button:hover { background: color-mix(in srgb, var(--wa-terra) 80%, #000); }
 
-/* 다크모드 특수 스타일 */
-.dark .stream-text .markdown-h1 {
-  border-bottom-color: #60a5fa;
-}
-
-.dark .stream-text .markdown-h1::after {
-  background: linear-gradient(90deg, #60a5fa, #93c5fd);
-}
-
-.dark .stream-text .markdown-h2 {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  border-left-color: #60a5fa;
-}
-
-.dark .stream-text .markdown-h2::before {
-  background: linear-gradient(180deg, #60a5fa, #93c5fd);
-}
-
-.dark .stream-text .markdown-h3 {
-  background-color: #1e293b;
-  border-left-color: #68d391;
-}
-
-.dark .stream-text .markdown-code {
-  background-color: #1e293b;
-  color: #fbbf24;
-  border-color: #374151;
-}
-
-.dark .stream-text .markdown-link {
-  color: #60a5fa;
-}
-
-.dark .stream-text .markdown-link:hover {
-  color: #93c5fd;
-}
-
-.dark .stream-text .markdown-list,
-.dark .stream-text .markdown-ordered-list {
-  background-color: #1e293b;
-  border-left-color: #60a5fa;
-}
-
-.dark .stream-text .markdown-list-item::before {
-  color: #60a5fa;
-}
-
-.dark .stream-text .markdown-ordered-list .markdown-list-item:before {
-  color: #60a5fa;
-}
-
-.dark .stream-text .markdown-blockquote {
-  background-color: #1e293b;
-  border-left-color: #60a5fa;
-  color: #cbd5e1;
-}
-
-.dark .stream-text .markdown-hr {
-  border-top-color: #374151;
-  background: linear-gradient(90deg, transparent, #60a5fa, transparent);
-}
-
-/* Empty state */
+/* ---- Empty ---- */
 .empty-state {
   text-align: center;
-  padding: 3.5rem 1.25rem;
-  background: var(--m3-surface-container);
-  border-radius: var(--m3-shape-xl);
-  margin: 1rem 0;
+  padding: 3rem 1.5rem;
+  background: var(--wa-cream);
+  border: 1px dashed color-mix(in srgb, var(--wa-sand) 70%, transparent);
+  border-radius: 24px;
 }
-.empty-content { max-width: 440px; margin: 0 auto; }
-.empty-icon { font-size: 3.75rem; margin-bottom: 1rem; line-height: 1; }
+.empty-tag {
+  display: inline-block;
+  font-family: var(--wa-font-sans);
+  font-size: 0.6875rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--wa-terra);
+  background: color-mix(in srgb, var(--wa-terra) 12%, transparent);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 0.75rem;
+}
 .empty-title {
-  font: var(--m3-headline-small);
-  color: var(--m3-on-surface);
+  font-family: var(--wa-font-serif);
+  font-size: 1.5rem;
+  color: var(--wa-ocean);
   margin: 0 0 0.5rem;
+  font-weight: 500;
 }
-.empty-description {
-  color: var(--m3-on-surface-variant);
-  margin: 0;
-  font: var(--m3-body-large);
-  line-height: 1.5;
+.empty-desc {
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  color: var(--wa-text-mid);
+  line-height: 1.55;
+  max-width: 520px;
+  margin: 0 auto;
 }
 
-/* 모바일 대응 */
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
 @media (max-width: 768px) {
-  .action-buttons {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
-  }
-  
-  .action-button {
-    min-width: auto;
-    width: 100%;
-    padding: 1rem;
-    font-size: 1rem;
-  }
-  
-  .button-text {
-    font-size: 1rem;
-  }
-  
-  .stream-text {
-    padding: 15px;
-    font-size: 0.8rem;
-  }
-  
-  .stream-text .markdown-h1 {
-    font-size: 1rem;
-  }
-  
-  .stream-text .markdown-h2 {
-    font-size: 0.9rem;
-  }
-  
-  .stream-text .markdown-h3 {
-    font-size: 0.85rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .action-buttons {
-    padding: 0.75rem;
-  }
-  
-  .action-button {
-    padding: 0.875rem;
-    font-size: 0.9rem;
-  }
-  
-  .stream-text {
-    padding: 12px;
-    font-size: 0.75rem;
-  }
+  .plan-header { padding: 1.5rem 1.25rem 1rem; }
+  .plan-actions { padding: 0 1.25rem 1rem; }
+  .timeline { padding: 0 1.25rem 1.5rem; }
+  .timeline::before { left: calc(1.25rem + 12px); }
+  .day-block { grid-template-columns: 36px 1fr; gap: 0.75rem; }
+  .day-number { font-size: 0.6875rem; padding: 0.25rem 0.5rem; }
+  .day-body { padding: 1rem; border-radius: 16px; }
+  .spot { grid-template-columns: 64px 1fr; }
+  .ai-bubble { grid-template-columns: 36px 1fr; padding: 1.25rem; gap: 0.625rem; }
+  .ai-avatar { width: 36px; height: 36px; }
 }
 </style>

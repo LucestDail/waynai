@@ -2,16 +2,24 @@ package com.waynai.demo.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.waynai.demo.dto.NaverBlogSearchDto;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,7 +40,37 @@ public class NaverApiClient {
     @Value("${naver.api.url}")
     private String apiUrl;
 
+    /**
+     * 로컬 개발용 TLS 검증 우회 플래그.
+     * JVM cacerts 에 MITM 프록시(Zscaler 등) 루트 인증서가 없을 때 PKIX 빌드 실패를 막기 위한 목적.
+     * 운영에서는 반드시 false.
+     */
+    @Value("${gemini.tls.insecure:false}")
+    private boolean tlsInsecure;
+
     private final ObjectMapper objectMapper;
+
+    private SSLSocketFactory insecureSocketFactory;
+    private HostnameVerifier insecureHostnameVerifier;
+
+    @PostConstruct
+    public void initTlsBypass() {
+        if (!tlsInsecure) return;
+        try {
+            log.warn("[naver] TLS 인증 검증을 우회합니다 (gemini.tls.insecure=true). 로컬 개발 전용 - 운영에서 사용하지 마세요.");
+            TrustManager[] trustAll = new TrustManager[] { new X509TrustManager() {
+                @Override public void checkClientTrusted(X509Certificate[] chain, String authType) { }
+                @Override public void checkServerTrusted(X509Certificate[] chain, String authType) { }
+                @Override public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+            }};
+            SSLContext ctx = SSLContext.getInstance("TLS");
+            ctx.init(null, trustAll, new java.security.SecureRandom());
+            insecureSocketFactory = ctx.getSocketFactory();
+            insecureHostnameVerifier = (hostname, session) -> true;
+        } catch (Exception e) {
+            log.error("[naver] InsecureTrustManager 설정 실패. 기본 TLS 로 진행합니다.", e);
+        }
+    }
 
     /**
      * 네이버 블로그 검색
@@ -125,7 +163,12 @@ public class NaverApiClient {
     private HttpURLConnection connect(String apiUrl) {
         try {
             URL url = new URL(apiUrl);
-            return (HttpURLConnection) url.openConnection();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            if (tlsInsecure && conn instanceof HttpsURLConnection https) {
+                if (insecureSocketFactory != null) https.setSSLSocketFactory(insecureSocketFactory);
+                if (insecureHostnameVerifier != null) https.setHostnameVerifier(insecureHostnameVerifier);
+            }
+            return conn;
         } catch (MalformedURLException e) {
             throw new RuntimeException("API URL이 잘못되었습니다. : " + apiUrl, e);
         } catch (IOException e) {

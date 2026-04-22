@@ -12,48 +12,72 @@
 :root {
   color-scheme: light;
 
-  /* ---------- M3 Color Roles (Light) ---------- */
-  --m3-primary: #1E3C72;
-  --m3-on-primary: #FFFFFF;
-  --m3-primary-container: #D9E2FF;
-  --m3-on-primary-container: #001A43;
+  /* ============================================================
+   * WaynAI Brand Palette (Ocean / Terra / Sage / Cream)
+   * reference/waynai.html 톤을 이식하기 위한 1차 브랜드 토큰
+   * ============================================================ */
+  --wa-ocean:      #1a3a4a;
+  --wa-dusk:       #2d5a6b;
+  --wa-sky:        #4f8fa3;
+  --wa-mist:       #a8c5d0;
+  --wa-sand:       #e8dcc8;
+  --wa-cream:      #f5f0e8;
+  --wa-warm:       #f9f6f0;
+  --wa-terra:      #c47c52;
+  --wa-terra-dark: #a56540;
+  --wa-amber:      #d4a056;
+  --wa-sage:       #7a9e8a;
+  --wa-sage-dark:  #557865;
+  --wa-text-dark:  #1a2530;
+  --wa-text-mid:   #4a6070;
+  --wa-text-light: #8aa5b5;
 
-  --m3-secondary: #585E72;
-  --m3-on-secondary: #FFFFFF;
-  --m3-secondary-container: #DCE2F9;
-  --m3-on-secondary-container: #151B2C;
+  --wa-font-serif: 'Cormorant Garamond', 'Noto Serif KR', Georgia, serif;
+  --wa-font-sans:  'DM Sans', 'Pretendard Variable', Pretendard, 'Noto Sans KR',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-  --m3-tertiary: #0F9D6B;
+  /* ---------- M3 Color Roles (Light) — wa-* 팔레트로 재매핑 ---------- */
+  --m3-primary: var(--wa-ocean);
+  --m3-on-primary: var(--wa-cream);
+  --m3-primary-container: var(--wa-sand);
+  --m3-on-primary-container: var(--wa-text-dark);
+
+  --m3-secondary: var(--wa-dusk);
+  --m3-on-secondary: var(--wa-cream);
+  --m3-secondary-container: var(--wa-mist);
+  --m3-on-secondary-container: var(--wa-ocean);
+
+  --m3-tertiary: var(--wa-terra);
   --m3-on-tertiary: #FFFFFF;
-  --m3-tertiary-container: #8FF6B9;
-  --m3-on-tertiary-container: #002112;
+  --m3-tertiary-container: #F5DCC8;
+  --m3-on-tertiary-container: #3A1D10;
 
   --m3-error: #BA1A1A;
   --m3-on-error: #FFFFFF;
   --m3-error-container: #FFDAD6;
   --m3-on-error-container: #410002;
 
-  --m3-background: #FDFBFF;
-  --m3-on-background: #1B1B1F;
+  --m3-background: var(--wa-warm);
+  --m3-on-background: var(--wa-text-dark);
 
-  --m3-surface: #FDFBFF;
-  --m3-on-surface: #1B1B1F;
-  --m3-surface-variant: #E1E2EC;
-  --m3-on-surface-variant: #44474F;
-  --m3-surface-dim: #DBD9DD;
-  --m3-surface-bright: #FBF8FD;
+  --m3-surface: var(--wa-warm);
+  --m3-on-surface: var(--wa-text-dark);
+  --m3-surface-variant: var(--wa-sand);
+  --m3-on-surface-variant: var(--wa-text-mid);
+  --m3-surface-dim: #E8E0D0;
+  --m3-surface-bright: #FDFBF6;
   --m3-surface-container-lowest: #FFFFFF;
-  --m3-surface-container-low: #F5F3F7;
-  --m3-surface-container: #EFEDF1;
-  --m3-surface-container-high: #E9E7EB;
-  --m3-surface-container-highest: #E3E2E6;
+  --m3-surface-container-low: var(--wa-cream);
+  --m3-surface-container: #EFE5D6;
+  --m3-surface-container-high: var(--wa-sand);
+  --m3-surface-container-highest: #DDCDAE;
 
-  --m3-outline: #74777F;
-  --m3-outline-variant: #C4C6D0;
+  --m3-outline: var(--wa-text-light);
+  --m3-outline-variant: #D9C9B2;
 
-  --m3-inverse-surface: #303033;
-  --m3-inverse-on-surface: #F2F0F4;
-  --m3-inverse-primary: #AEC6FF;
+  --m3-inverse-surface: var(--wa-ocean);
+  --m3-inverse-on-surface: var(--wa-cream);
+  --m3-inverse-primary: var(--wa-amber);
 
   --m3-shadow-rgb: 0, 0, 0;
   --m3-scrim: rgba(0, 0, 0, 0.32);
@@ -95,15 +119,14 @@
   --m3-motion-long: 500ms var(--m3-easing-standard);
 
   /* ---------- Typography ---------- */
-  --m3-font-family: 'Pretendard Variable', Pretendard, 'Noto Sans KR',
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Apple SD Gothic Neo', sans-serif;
+  --m3-font-family: var(--wa-font-sans);
+  --m3-font-display: var(--wa-font-serif);
 
-  --m3-display-large:   400 clamp(2.75rem, 4vw + 1rem, 3.5rem)/1.12 var(--m3-font-family);
-  --m3-display-medium:  400 clamp(2.25rem, 3vw + 1rem, 2.8125rem)/1.15 var(--m3-font-family);
-  --m3-display-small:   400 clamp(1.875rem, 2vw + 1rem, 2.25rem)/1.22 var(--m3-font-family);
-  --m3-headline-large:  500 clamp(1.625rem, 1.5vw + 1rem, 2rem)/1.25 var(--m3-font-family);
-  --m3-headline-medium: 500 clamp(1.375rem, 1vw + 1rem, 1.75rem)/1.28 var(--m3-font-family);
+  --m3-display-large:   400 clamp(2.75rem, 4vw + 1rem, 4rem)/1.1 var(--m3-font-display);
+  --m3-display-medium:  400 clamp(2.25rem, 3vw + 1rem, 3rem)/1.12 var(--m3-font-display);
+  --m3-display-small:   400 clamp(2rem, 2vw + 1rem, 2.375rem)/1.2 var(--m3-font-display);
+  --m3-headline-large:  500 clamp(1.75rem, 1.5vw + 1rem, 2.125rem)/1.22 var(--m3-font-display);
+  --m3-headline-medium: 500 clamp(1.5rem, 1vw + 1rem, 1.875rem)/1.25 var(--m3-font-display);
   --m3-headline-small:  600 1.5rem/1.33 var(--m3-font-family);
   --m3-title-large:     600 1.375rem/1.27 var(--m3-font-family);
   --m3-title-medium:    600 1rem/1.5 var(--m3-font-family);
@@ -211,47 +234,47 @@
 .dark {
   color-scheme: dark;
 
-  --m3-primary: #B1C5FF;
-  --m3-on-primary: #002F6A;
-  --m3-primary-container: #00449A;
-  --m3-on-primary-container: #D9E2FF;
+  --m3-primary: var(--wa-sand);
+  --m3-on-primary: var(--wa-ocean);
+  --m3-primary-container: var(--wa-dusk);
+  --m3-on-primary-container: var(--wa-cream);
 
-  --m3-secondary: #C0C6DD;
-  --m3-on-secondary: #2A3042;
-  --m3-secondary-container: #40475A;
-  --m3-on-secondary-container: #DCE2F9;
+  --m3-secondary: var(--wa-mist);
+  --m3-on-secondary: var(--wa-ocean);
+  --m3-secondary-container: #2F4A57;
+  --m3-on-secondary-container: var(--wa-cream);
 
-  --m3-tertiary: #72DBA5;
-  --m3-on-tertiary: #003920;
-  --m3-tertiary-container: #005230;
-  --m3-on-tertiary-container: #8FF6B9;
+  --m3-tertiary: var(--wa-amber);
+  --m3-on-tertiary: #3A1D10;
+  --m3-tertiary-container: var(--wa-terra-dark);
+  --m3-on-tertiary-container: #F5DCC8;
 
   --m3-error: #FFB4AB;
   --m3-on-error: #690005;
   --m3-error-container: #93000A;
   --m3-on-error-container: #FFDAD6;
 
-  --m3-background: #121317;
-  --m3-on-background: #E4E2E6;
+  --m3-background: #0F1E28;
+  --m3-on-background: var(--wa-cream);
 
-  --m3-surface: #121317;
-  --m3-on-surface: #E4E2E6;
-  --m3-surface-variant: #44474F;
-  --m3-on-surface-variant: #C4C6D0;
-  --m3-surface-dim: #121317;
-  --m3-surface-bright: #38393D;
-  --m3-surface-container-lowest: #0D0E12;
-  --m3-surface-container-low: #1B1B1F;
-  --m3-surface-container: #1F1F23;
-  --m3-surface-container-high: #292A2D;
-  --m3-surface-container-highest: #343538;
+  --m3-surface: #0F1E28;
+  --m3-on-surface: var(--wa-cream);
+  --m3-surface-variant: #2A3A44;
+  --m3-on-surface-variant: var(--wa-mist);
+  --m3-surface-dim: #0B1721;
+  --m3-surface-bright: #203541;
+  --m3-surface-container-lowest: #0A141C;
+  --m3-surface-container-low: #142530;
+  --m3-surface-container: #19303E;
+  --m3-surface-container-high: #203A49;
+  --m3-surface-container-highest: #274555;
 
-  --m3-outline: #8E9099;
-  --m3-outline-variant: #44474F;
+  --m3-outline: var(--wa-text-light);
+  --m3-outline-variant: #33505F;
 
-  --m3-inverse-surface: #E4E2E6;
-  --m3-inverse-on-surface: #303033;
-  --m3-inverse-primary: #1E3C72;
+  --m3-inverse-surface: var(--wa-cream);
+  --m3-inverse-on-surface: var(--wa-ocean);
+  --m3-inverse-primary: var(--wa-terra);
 
   --m3-scrim: rgba(0, 0, 0, 0.72);
 

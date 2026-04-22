@@ -3,7 +3,7 @@
     <div class="container">
       <div class="header">
         <h1 class="title">관광 정보 조회</h1>
-        <p class="subtitle">지역별 관광지 정보를 검색하고 상세 정보를 확인하세요</p>
+        <p class="subtitle">한국관광공사 공공데이터 기준으로 지역별 인기 관광지를 조회합니다</p>
       </div>
 
       <div class="search-section">
@@ -15,25 +15,29 @@
               v-model="searchArea"
               type="text"
               class="search-input"
-              placeholder="예시: 서울, 부산, 제주도"
+              placeholder="예시: 서울, 부산, 제주, 강원"
               @keyup.enter="searchTouristInfo"
             />
           </div>
 
           <div class="search-options">
             <div class="option-group">
-              <label for="categoryFilter" class="option-label">카테고리</label>
+              <label for="sigunguFilter" class="option-label">시군구</label>
               <select
-                id="categoryFilter"
-                v-model="selectedCategory"
+                id="sigunguFilter"
+                v-model="selectedSigunguKey"
                 class="option-select"
+                :disabled="sigunguOptions.length === 0"
+                @change="loadSpotsForSelected"
               >
-                <option value="">전체</option>
-                <option value="문화">문화</option>
-                <option value="자연">자연</option>
-                <option value="쇼핑">쇼핑</option>
-                <option value="음식">음식</option>
-                <option value="레저">레저</option>
+                <option v-if="sigunguOptions.length === 0" value="">먼저 지역을 검색하세요</option>
+                <option
+                  v-for="sg in sigunguOptions"
+                  :key="sg.areaCode + '-' + sg.sigunguCode"
+                  :value="sg.areaCode + '-' + sg.sigunguCode"
+                >
+                  {{ sg.areaName }} · {{ sg.sigunguName }}
+                </option>
               </select>
             </div>
 
@@ -44,9 +48,8 @@
                 v-model="sortBy"
                 class="option-select"
               >
+                <option value="rank">추천순 (hubRank)</option>
                 <option value="name">이름순</option>
-                <option value="popularity">인기순</option>
-                <option value="rating">평점순</option>
               </select>
             </div>
           </div>
@@ -55,41 +58,59 @@
             <button
               @click="searchTouristInfo"
               class="search-button"
-              :disabled="!searchArea.trim()"
+              :disabled="!searchArea.trim() || isLoading"
             >
-              검색
+              {{ isLoading ? '조회 중…' : '검색' }}
             </button>
           </div>
+        </div>
+
+        <!-- 에러 상태 -->
+        <div v-if="errorMessage" class="error-banner">
+          <strong>오류</strong> · {{ errorMessage }}
         </div>
 
         <!-- 로딩 상태 -->
         <div v-if="isLoading" class="loading-container">
           <div class="loading-spinner"></div>
-          <p class="loading-text">관광 정보를 검색하고 있습니다...</p>
+          <p class="loading-text">{{ loadingMessage }}</p>
         </div>
 
         <!-- 결과 표시 -->
-        <div v-if="touristInfo.length > 0" class="results-section">
-          <h3 class="results-title">검색 결과 ({{ touristInfo.length }}개)</h3>
+        <div v-if="sortedSpots.length > 0" class="results-section">
+          <h3 class="results-title">
+            {{ currentSigunguLabel }} · 검색 결과 {{ sortedSpots.length }}건
+            <span v-if="totalCount > sortedSpots.length" class="results-subtotal">
+              (전체 {{ totalCount }}건 중)
+            </span>
+          </h3>
           <div class="tourist-grid">
             <div
-              v-for="(spot, index) in touristInfo"
-              :key="index"
+              v-for="spot in sortedSpots"
+              :key="spot.hubTatsCd"
               class="tourist-card"
             >
               <div class="card-header">
-                <h4 class="spot-name">{{ spot.name }}</h4>
-                <span class="spot-category">{{ spot.category }}</span>
+                <h4 class="spot-name">{{ spot.hubTatsNm }}</h4>
+                <span class="spot-category">{{ categoryOf(spot) }}</span>
               </div>
               <div class="card-content">
-                <p class="spot-description">{{ spot.description }}</p>
                 <div class="spot-details">
                   <span class="detail-item">
-                    <strong>지역:</strong> {{ spot.area }}
+                    <strong>지역:</strong> {{ spot.areaNm }} {{ spot.signguNm }}
                   </span>
                   <span class="detail-item">
-                    <strong>주소:</strong> {{ spot.address }}
+                    <strong>좌표:</strong> {{ formatCoord(spot.mapY) }}, {{ formatCoord(spot.mapX) }}
                   </span>
+                  <span class="detail-item">
+                    <strong>기준월:</strong> {{ formatBaseYm(spot.baseYm) }}
+                  </span>
+                  <a
+                    class="detail-item map-link"
+                    :href="mapLink(spot)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >지도에서 보기 ↗</a>
                 </div>
               </div>
             </div>
@@ -97,7 +118,7 @@
         </div>
 
         <!-- 빈 결과 -->
-        <div v-else-if="hasSearched && !isLoading" class="empty-results">
+        <div v-else-if="hasSearched && !isLoading && !errorMessage" class="empty-results">
           <p>검색 결과가 없습니다.</p>
         </div>
       </div>
@@ -106,42 +127,122 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
+import axios from 'axios';
+import touristInfoService, {
+  type AreaCodeDto,
+  type TouristSpotDto,
+} from '@/services/touristInfoService';
 
 const searchArea = ref('');
-const selectedCategory = ref('');
-const sortBy = ref('name');
+const sortBy = ref<'rank' | 'name'>('rank');
 const isLoading = ref(false);
 const hasSearched = ref(false);
+const errorMessage = ref('');
+const loadingMessage = ref('관광 정보를 검색하고 있습니다...');
 
-// 임시 데이터 (실제로는 API 호출)
-const touristInfo = ref([
-  {
-    name: '경복궁',
-    category: '문화',
-    description: '조선왕조의 정궁으로 아름다운 전통 건축물을 감상할 수 있습니다.',
-    area: '서울 종로구',
-    address: '서울특별시 종로구 사직로 161'
-  },
-  {
-    name: '해운대 해수욕장',
-    category: '자연',
-    description: '부산의 대표적인 해수욕장으로 아름다운 해변과 맑은 바다를 즐길 수 있습니다.',
-    area: '부산 해운대구',
-    address: '부산광역시 해운대구 해운대해변로 264'
+const sigunguOptions = ref<AreaCodeDto[]>([]);
+const selectedSigunguKey = ref('');
+const spots = ref<TouristSpotDto[]>([]);
+const totalCount = ref(0);
+
+const currentSigunguLabel = computed(() => {
+  const sg = sigunguOptions.value.find(
+    (s) => `${s.areaCode}-${s.sigunguCode}` === selectedSigunguKey.value,
+  );
+  return sg ? `${sg.areaName} ${sg.sigunguName}` : '';
+});
+
+const sortedSpots = computed(() => {
+  const list = [...spots.value];
+  if (sortBy.value === 'name') {
+    list.sort((a, b) => (a.hubTatsNm || '').localeCompare(b.hubTatsNm || '', 'ko'));
+  } else {
+    list.sort((a, b) => Number(a.hubRank || 9999) - Number(b.hubRank || 9999));
   }
-]);
+  return list;
+});
+
+const categoryOf = (spot: TouristSpotDto): string =>
+  spot.hubCtgrySclsNm || spot.hubCtgryMclsNm || spot.hubCtgryLclsNm || '기타';
+
+const formatCoord = (v: string | null | undefined): string => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(5) : '-';
+};
+
+const formatBaseYm = (ym: string | null | undefined): string => {
+  if (!ym || ym.length !== 6) return ym ?? '-';
+  return `${ym.slice(0, 4)}.${ym.slice(4)}`;
+};
+
+const mapLink = (spot: TouristSpotDto): string => {
+  const q = encodeURIComponent(spot.hubTatsNm);
+  return `https://map.naver.com/p/search/${q}`;
+};
+
+const extractErrorMessage = (err: unknown): string => {
+  if (axios.isAxiosError(err)) {
+    const body = err.response?.data as { resultMsg?: string; message?: string } | undefined;
+    return body?.resultMsg || body?.message || err.message;
+  }
+  if (err instanceof Error) return err.message;
+  return '알 수 없는 오류';
+};
 
 const searchTouristInfo = async () => {
-  if (!searchArea.value.trim()) return;
-  
+  const q = searchArea.value.trim();
+  if (!q) return;
+
   isLoading.value = true;
   hasSearched.value = true;
-  
-  // 실제 구현에서는 API 호출
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  isLoading.value = false;
+  errorMessage.value = '';
+  spots.value = [];
+  totalCount.value = 0;
+  loadingMessage.value = `${q} 지역의 시군구 정보를 불러오는 중...`;
+
+  try {
+    const areas = await touristInfoService.searchAreaByName(q);
+    sigunguOptions.value = areas;
+
+    if (areas.length === 0) {
+      selectedSigunguKey.value = '';
+      errorMessage.value = `"${q}" 로 매칭되는 지역이 없습니다. (예: 서울, 부산, 제주, 강원, 경기 등)`;
+      return;
+    }
+
+    selectedSigunguKey.value = `${areas[0].areaCode}-${areas[0].sigunguCode}`;
+    await loadSpotsForSelected();
+  } catch (err) {
+    errorMessage.value = extractErrorMessage(err);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const loadSpotsForSelected = async () => {
+  if (!selectedSigunguKey.value) return;
+  const [areaCode, sigunguCode] = selectedSigunguKey.value.split('-');
+  if (!areaCode || !sigunguCode) return;
+
+  isLoading.value = true;
+  errorMessage.value = '';
+  loadingMessage.value = `${currentSigunguLabel.value} 관광지 정보를 불러오는 중...`;
+
+  try {
+    const res = await touristInfoService.getSpots(areaCode, sigunguCode, 1, 20);
+    if (!res.success) {
+      throw new Error(res.resultMsg || '조회 실패');
+    }
+    spots.value = res.items ?? [];
+    totalCount.value = res.totalCount ?? spots.value.length;
+  } catch (err) {
+    spots.value = [];
+    totalCount.value = 0;
+    errorMessage.value = extractErrorMessage(err);
+  } finally {
+    isLoading.value = false;
+  }
 };
 </script>
 
@@ -271,12 +372,37 @@ const searchTouristInfo = async () => {
 }
 .loading-text { color: var(--m3-on-surface-variant); font: var(--m3-body-large); }
 
+.error-banner {
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--m3-shape-sm);
+  background: color-mix(in srgb, var(--m3-error-container, #ffdad6) 70%, transparent);
+  color: var(--m3-on-error-container, #410002);
+  font: var(--m3-body-medium);
+  border-left: 4px solid var(--m3-error, #b3261e);
+}
+
 .results-section { margin-top: 2rem; }
 .results-title {
   font: var(--m3-title-large);
   color: var(--m3-on-surface);
   margin: 0 0 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
 }
+.results-subtotal {
+  font: var(--m3-body-medium);
+  color: var(--m3-on-surface-variant);
+}
+
+.map-link {
+  color: var(--m3-primary);
+  text-decoration: none;
+  margin-top: 0.25rem;
+}
+.map-link:hover { text-decoration: underline; }
 
 .tourist-grid {
   display: grid;

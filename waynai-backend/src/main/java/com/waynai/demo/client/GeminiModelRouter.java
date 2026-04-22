@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -41,7 +42,7 @@ public class GeminiModelRouter {
     @Value("${gemini.api.key:}")
     private String apiKey;
 
-    @Value("${gemini.model.chain:gemini-2.5-flash-lite,gemini-2.0-flash-lite,gemini-2.0-flash,gemini-2.5-flash,gemini-2.5-pro}")
+    @Value("${gemini.model.chain:gemini-3.1-flash-lite-preview,gemini-3-flash-preview,gemini-3.1-pro-preview}")
     private String modelChainRaw;
 
     @Value("${gemini.retry.per-model:1}")
@@ -111,7 +112,15 @@ public class GeminiModelRouter {
     }
 
     public Mono<String> generateText(String prompt) {
-        return Mono.fromCallable(() -> invokeWithFallback(prompt))
+        return generateText(prompt, null);
+    }
+
+    /**
+     * 핫스왑 호출 중 최종 성공한 모델명을 외부로 노출할 수 있는 변형.
+     * 오케스트레이터가 SSE 로 {@code model} 이벤트를 푸시하기 위해 사용합니다.
+     */
+    public Mono<String> generateText(String prompt, Consumer<String> onModelSelected) {
+        return Mono.fromCallable(() -> invokeWithFallback(prompt, onModelSelected))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
@@ -120,6 +129,10 @@ public class GeminiModelRouter {
     }
 
     private String invokeWithFallback(String prompt) {
+        return invokeWithFallback(prompt, null);
+    }
+
+    private String invokeWithFallback(String prompt, Consumer<String> onModelSelected) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("GEMINI_API_KEY 가 설정되지 않았습니다.");
         }
@@ -139,6 +152,13 @@ public class GeminiModelRouter {
                         throw new RuntimeException("빈 응답");
                     }
                     log.info("[gemini] 성공: model={}, respLen={}", model, text.length());
+                    if (onModelSelected != null) {
+                        try {
+                            onModelSelected.accept(model);
+                        } catch (Exception hookErr) {
+                            log.warn("[gemini] onModelSelected 훅 오류 (무시): {}", hookErr.getMessage());
+                        }
+                    }
                     return text;
                 } catch (Exception e) {
                     last = e;

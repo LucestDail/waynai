@@ -1,488 +1,518 @@
 <script setup lang="ts">
-import SearchInput from '@/components/SearchInput.vue';
-import SearchResult from '@/components/SearchResult.vue';
 import SearchProgress from '@/components/SearchProgress.vue';
 import StreamResult from '@/components/StreamResult.vue';
-import { useSearchStore } from '@/stores/search';
 import { useStreamStore } from '@/stores/stream';
-import { computed, ref } from 'vue';
+import { computed, onUnmounted, ref } from 'vue';
 
-const searchStore = useSearchStore();
 const streamStore = useStreamStore();
-const searchState = searchStore.state;
 const streamState = streamStore.state;
 const searchQuery = ref('');
-const isSearching = ref(false);
+const isSearching = computed(() => streamState.isStreaming);
+
+const shouldShowProgress = computed(() =>
+  streamState.isStreaming ||
+  streamState.progress.messages.length > 0 ||
+  streamState.progress.stage !== 'idle'
+);
 
 const shouldShowResult = computed(() => {
-  return (searchState.result !== null && searchState.result !== undefined) || 
-         searchState.error || 
-         searchState.currentStatus === 'completed';
+  const hasData = !!streamState.plan ||
+    (streamState.currentData && streamState.currentData.trim().length > 0);
+  return hasData || !!streamState.error;
 });
 
-const shouldShowLoading = computed(() => {
-  return isSearching.value;
-});
+const presets = [
+  '부산 해운대에서 2박 3일, 해산물과 야경 위주',
+  '제주 서귀포 가족 여행 3박 4일, 아이 있는 코스',
+  '강릉 커피 투어 당일치기',
+  '전주 한옥마을 + 맛집 위주 1박 2일',
+];
 
-const shouldShowStream = computed(() => {
-  // 데이터가 있거나 에러가 있으면 결과 컴포넌트 표시
-  const hasData = streamState.currentData && streamState.currentData.trim().length > 0;
-  const hasError = !!streamState.error;
-  
-  console.log('결과 표시 여부:', {
-    hasData,
-    hasError,
-    currentDataLength: streamState.currentData?.length || 0,
-    willShow: hasData || hasError
-  });
-  
-  return hasData || hasError;
-});
+const usePreset = (preset: string) => {
+  searchQuery.value = preset;
+};
 
 const handleSearch = async () => {
-  if (!searchQuery.value.trim()) {
-    return;
-  }
-  
-  // 중복 호출 방지
-  if (isSearching.value) {
-    console.log('이미 검색 중입니다. 중복 호출을 차단합니다.');
-    return;
-  }
-  
-  console.log('여행 계획 생성 시작:', searchQuery.value);
-  isSearching.value = true;
-  
-  // 검색 시작 시 스크롤 다운 처리
+  if (!searchQuery.value.trim() || streamState.isStreaming) return;
+
+  await streamStore.startTravelPlanStream(searchQuery.value.trim());
+
   setTimeout(() => {
-    const resultSection = document.querySelector('.result-section');
-    if (resultSection) {
-      resultSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, 100);
-  
-  // searchStore의 isSearching 상태도 함께 설정
-  searchStore.state.isSearching = true;
-  
-  // 기존 검색 결과 클리어
-  searchStore.clearSearch();
-  streamStore.clearStream();
-  
-  try {
-    // 30초 프로그레스바 시뮬레이션 시작
-    let progressValue = 0;
-    let currentStepIndex = 0;
-    
-    const steps = [
-      { status: 'analyzing', step: 'intent_analysis', message: '사용자 입력을 분석하는 중...' },
-      { status: 'searching', step: 'knowledge_search', message: '관광지 정보를 검색하고 수집하는 중...' },
-      { status: 'generating', step: 'course_generation', message: 'AI가 여행 계획을 생성하는 중...' }
-    ];
-    
-    // 프로그레스바 시뮬레이션 함수
-    const simulateProgress = () => {
-      const progressInterval = setInterval(() => {
-        progressValue += 1;
-        
-        // 단계별 진행 (10초마다 단계 변경)
-        if (progressValue % 10 === 0 && currentStepIndex < steps.length - 1) {
-          currentStepIndex++;
-          const currentStep = steps[currentStepIndex];
-          searchStore.state.currentStatus = currentStep.status;
-          searchStore.state.currentStep = currentStep.step;
-          searchStore.state.progress = steps.slice(0, currentStepIndex + 1).map(s => s.message);
-        }
-        
-        // 30초 후 자동으로 100%로 설정
-        if (progressValue >= 30) {
-          clearInterval(progressInterval);
-        }
-      }, 1000);
-      
-      return progressInterval;
-    };
-    
-    // 프로그레스바 시뮬레이션 시작
-    const progressInterval = simulateProgress();
-    
-    // HTTP 요청과 프로그레스바 시뮬레이션을 병렬로 실행
-    console.log('여행 계획 요청 시작:', searchQuery.value);
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://3.35.206.187:8080'}/api/travel/plan?query=${encodeURIComponent(searchQuery.value)}`);
-    
-    // 프로그레스바 시뮬레이션 중단
-    clearInterval(progressInterval);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP 오류! 상태: ${response.status}`);
-    }
-    
-    const data = await response.text();
-    console.log('서버 응답 받음, 데이터 길이:', data.length);
-    
-    // 완료 상태로 즉시 설정
-    searchStore.state.currentStatus = 'completed';
-    searchStore.state.currentStep = 'course_generation';
-    searchStore.state.progress = [
-      '사용자 입력을 분석하는 중...',
-      '관광지 정보를 검색하고 수집하는 중...',
-      'AI가 여행 계획을 생성하는 중...',
-      '여행 계획 생성 완료!'
-    ];
-    
-    // 1초 지연 후 프로그레스바 페이드아웃
-    setTimeout(() => {
-      // 프로그레스바 페이드아웃 효과
-      const progressElement = document.querySelector('.progress-container') as HTMLElement;
-      if (progressElement) {
-        progressElement.style.transition = 'opacity 0.8s ease-out';
-        progressElement.style.opacity = '0';
-        
-        // 페이드아웃 완료 후 데이터 표시
-        setTimeout(() => {
-          if (data && data.trim().length > 0) {
-            streamStore.setData(data);
-            console.log('데이터 설정 완료, 화면에 표시됨');
-          } else {
-            streamStore.setError('서버에서 빈 응답을 받았습니다.');
-          }
-        }, 800); // 페이드아웃 완료 후 0.8초 대기
-      } else {
-        // 프로그레스바가 없는 경우 바로 데이터 표시
-        if (data && data.trim().length > 0) {
-          streamStore.setData(data);
-          console.log('데이터 설정 완료, 화면에 표시됨');
-        } else {
-          streamStore.setError('서버에서 빈 응답을 받았습니다.');
-        }
-      }
-    }, 1000);
-    
-  } catch (error) {
-    console.error('여행 계획 생성 실패:', error);
-    
-    // 에러 상태 업데이트
-    searchStore.state.currentStatus = 'error';
-    searchStore.state.progress = [
-      '사용자 입력을 분석하는 중...',
-      'AI가 여행 계획을 생성하는 중...',
-      '오류가 발생했습니다.'
-    ];
-    
-    streamStore.setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
-  } finally {
-    isSearching.value = false;
-    searchStore.state.isSearching = false;
-  }
+    document.querySelector('.result-section')?.scrollIntoView({ behavior: 'smooth' });
+  }, 120);
 };
+
+onUnmounted(() => {
+  streamStore.stopStream();
+});
 </script>
 
 <template>
   <div class="home">
-    <!-- 메인 히어로 섹션 -->
-    <div class="hero-section">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-bg" aria-hidden="true"></div>
+
       <div class="hero-content">
-        <h1 class="hero-title">당신의 여행 길을<br>함께 찾아드립니다</h1>
-        <p class="hero-subtitle">
-          AI가 이끄는 당신만의 특별한 여행 경험
-        </p>
-        
-        <!-- 검색 섹션을 히어로 섹션 안으로 이동 -->
-        <div class="search-container">
-          <h2 class="search-title">어디로 가고 싶으신가요?</h2>
-          <div class="search-input-group">
+        <div class="hero-text">
+          <span class="eyebrow">wayn · AI 여행 어시스턴트</span>
+          <h1 class="hero-title">
+            여행의 처음부터 끝까지,<br />
+            <em>함께</em> 만들어가요
+          </h1>
+          <p class="hero-lead">
+            관광공사 공공데이터, 네이버 리뷰, 그리고 Gemini 3 핫스왑 모델이
+            실시간으로 움직이는 여행 파이프라인. 한 줄 질의로 완성되는 맞춤 계획.
+          </p>
+
+          <form class="hero-search" @submit.prevent="handleSearch">
             <input
               v-model="searchQuery"
-              @keyup.enter="handleSearch"
               type="text"
-              placeholder="서울 종로구"
-              class="search-input"
+              class="hero-input"
+              placeholder="예: 부산 해운대 2박 3일, 해산물 맛집과 야경"
               :disabled="isSearching"
             />
-            <button @click="handleSearch" class="search-button" :disabled="isSearching">
-              <span v-if="isSearching" class="loading-spinner-small"></span>
-              <span v-else>검색</span>
+            <button type="submit" class="hero-submit" :disabled="isSearching || !searchQuery.trim()">
+              <span v-if="isSearching" class="spinner"></span>
+              <span v-else>계획 생성</span>
+            </button>
+          </form>
+
+          <div class="preset-row">
+            <span class="preset-label">추천 질의</span>
+            <button
+              v-for="preset in presets"
+              :key="preset"
+              class="preset-chip"
+              type="button"
+              :disabled="isSearching"
+              @click="usePreset(preset)"
+            >
+              {{ preset }}
             </button>
           </div>
+
+          <div class="hero-stats">
+            <div class="stat">
+              <span class="stat-value">3</span>
+              <span class="stat-label">Gemini 3 핫스왑 레이어</span>
+            </div>
+            <div class="stat-divider" aria-hidden="true"></div>
+            <div class="stat">
+              <span class="stat-value">실시간</span>
+              <span class="stat-label">SSE 진행 이벤트</span>
+            </div>
+            <div class="stat-divider" aria-hidden="true"></div>
+            <div class="stat">
+              <span class="stat-value">2 RAG</span>
+              <span class="stat-label">관광공사 + 네이버</span>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- 결과 표시 섹션 -->
-    <div class="result-section">
-      <div class="result-container">
-        <transition name="fade" mode="out-in">
-          <SearchProgress v-if="searchState.isSearching" key="progress" />
-          
-          <!-- 스트림 결과 표시 -->
-          <StreamResult v-else-if="shouldShowStream" key="result" />
-          
-          <!-- 로딩 상태 (백업용) -->
-          <div v-else-if="shouldShowLoading" key="loading" class="loading-container">
-            <div class="loading-spinner"></div>
-            <p class="loading-text">AI가 여행 정보를 생성하고 있습니다...</p>
+        <aside class="hero-mock" aria-hidden="true">
+          <div class="mock-phone mock-phone--main">
+            <div class="mock-notch"></div>
+            <div class="mock-screen">
+              <div class="mock-header">
+                <span class="mock-chip">실시간</span>
+                <span class="mock-time">09:24</span>
+              </div>
+              <div class="mock-title">
+                <span>오늘의 일정</span>
+                <strong>해운대 해변길</strong>
+              </div>
+              <ul class="mock-list">
+                <li><span class="mock-dot dot-amber"></span><b>09:30</b> 해운대 해수욕장</li>
+                <li><span class="mock-dot dot-sage"></span><b>12:00</b> 민락 회센터</li>
+                <li><span class="mock-dot dot-terra"></span><b>15:00</b> 해리단길 카페</li>
+                <li><span class="mock-dot dot-ocean"></span><b>19:00</b> 광안리 드론쇼</li>
+              </ul>
+            </div>
           </div>
-          
-          <!-- 초기 상태 -->
-          <div v-else key="initial" class="initial-state">
-            <div class="initial-icon">✈️</div>
-            <h3>여행 계획을 시작해보세요</h3>
-            <p>위에서 여행하고 싶은 곳을 입력하고 검색 버튼을 눌러보세요.</p>
+          <div class="mock-phone mock-phone--side">
+            <div class="mock-notch"></div>
+            <div class="mock-screen mock-screen--compact">
+              <span class="mock-tag">AI 추천</span>
+              <p class="mock-quote">
+                "해운대의 아침 산책은 동백섬 → 달맞이고개로 이어져야 진짜예요."
+              </p>
+              <div class="mock-model">gemini-3.1-pro-preview</div>
+            </div>
           </div>
-        </transition>
+        </aside>
       </div>
-    </div>
+    </section>
 
+    <!-- Result / Progress -->
+    <section class="result-section" v-if="shouldShowProgress || shouldShowResult">
+      <SearchProgress v-if="shouldShowProgress" />
+      <StreamResult v-if="shouldShowResult" />
+    </section>
   </div>
 </template>
 
 <style scoped>
-/* ========== HomeView — Material Design 3 ========== */
 .home {
-  min-height: calc(100vh - 64px);
-  background: var(--m3-background);
-  color: var(--m3-on-background);
-  display: flex;
-  flex-direction: column;
+  min-height: calc(100vh - 70px);
+  color: var(--wa-text-dark);
+  background: var(--wa-warm);
 }
 
-/* Hero: primary-container tonal 배경 */
-.hero-section {
+/* ============== HERO ============== */
+.hero {
   position: relative;
-  isolation: isolate;
-  padding: clamp(3rem, 8vw, 6rem) 1.5rem clamp(3rem, 6vw, 4.5rem);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--m3-primary-container) 80%, var(--m3-background)) 0%,
-    var(--m3-background) 100%
-  );
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
   overflow: hidden;
+  padding: clamp(3rem, 6vw, 5.5rem) 1.5rem clamp(4rem, 6vw, 6rem);
 }
-.hero-section::before {
-  content: '';
+.hero-bg {
   position: absolute;
-  inset: -50% -20% auto auto;
-  width: 60%;
-  height: 60%;
-  background: radial-gradient(
-    circle at 70% 30%,
-    color-mix(in srgb, var(--m3-tertiary) 28%, transparent),
-    transparent 60%
-  );
-  filter: blur(20px);
+  inset: -10% -20% -20% -20%;
+  background:
+    radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--wa-amber) 28%, transparent), transparent 45%),
+    radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--wa-terra) 22%, transparent), transparent 50%),
+    radial-gradient(circle at 60% 80%, color-mix(in srgb, var(--wa-sage) 24%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--wa-cream), var(--wa-warm) 80%);
   pointer-events: none;
-  z-index: -1;
-}
-.hero-section::after {
-  content: '';
-  position: absolute;
-  inset: auto auto -30% -10%;
-  width: 45%;
-  height: 45%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--m3-primary) 22%, transparent),
-    transparent 65%
-  );
-  filter: blur(30px);
-  pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
 .hero-content {
-  max-width: 760px;
-  width: 100%;
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: center;
+}
+
+.hero-text { display: flex; flex-direction: column; }
+
+.eyebrow {
+  font-family: var(--wa-font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--wa-terra);
+  margin-bottom: 1rem;
 }
 
 .hero-title {
-  font: var(--m3-display-medium);
-  color: var(--m3-on-surface);
-  letter-spacing: -0.02em;
-  margin: 0 0 1rem;
+  font-family: var(--wa-font-serif);
+  font-size: clamp(2.5rem, 3vw + 1.5rem, 4rem);
+  font-weight: 500;
+  line-height: 1.08;
+  color: var(--wa-ocean);
+  letter-spacing: -0.015em;
+  margin: 0 0 1.25rem;
+}
+.hero-title em {
+  color: var(--wa-terra);
+  font-style: italic;
+  font-weight: 500;
 }
 
-.hero-subtitle {
-  font: var(--m3-title-medium);
-  font-size: clamp(1rem, 1.1vw + 0.5rem, 1.25rem);
-  color: var(--m3-on-surface-variant);
-  margin: 0 0 2.5rem;
+.hero-lead {
+  font-family: var(--wa-font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--wa-text-mid);
+  margin: 0 0 2rem;
+  max-width: 560px;
 }
 
-/* Search block */
-.search-container {
-  width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-.search-title {
-  font: var(--m3-title-medium);
-  color: var(--m3-on-surface);
-  margin: 0 0 1rem;
-}
-
-/* M3 Search bar: pill-shaped elevated surface */
-.search-input-group {
+/* Search pill */
+.hero-search {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
-  background: var(--m3-surface-container-lowest);
-  border: 1px solid var(--m3-outline-variant);
-  border-radius: var(--m3-shape-full);
-  padding: 0.375rem 0.375rem 0.375rem 1.25rem;
-  box-shadow: var(--m3-elev-1);
-  transition: box-shadow var(--m3-motion-short), border-color var(--m3-motion-short);
+  gap: 0.5rem;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 65%, transparent);
+  border-radius: 999px;
+  padding: 0.375rem 0.375rem 0.375rem 1.5rem;
+  box-shadow: 0 20px 40px -24px color-mix(in srgb, var(--wa-ocean) 35%, transparent);
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+  max-width: 640px;
 }
-.search-input-group:focus-within {
-  border-color: var(--m3-primary);
-  box-shadow: var(--m3-elev-2);
+.hero-search:focus-within {
+  border-color: var(--wa-ocean);
+  box-shadow: 0 28px 48px -24px color-mix(in srgb, var(--wa-ocean) 45%, transparent);
 }
-
-.search-input {
+.hero-input {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
+  font-family: var(--wa-font-sans);
+  font-size: 1rem;
+  color: var(--wa-text-dark);
   padding: 0.875rem 0;
-  font: var(--m3-body-large);
-  color: var(--m3-on-surface);
+  box-shadow: none !important;
 }
-.search-input::placeholder { color: var(--m3-outline); }
-.search-input:focus { box-shadow: none; }
-.search-input:disabled { opacity: 0.5; cursor: not-allowed; }
+.hero-input::placeholder { color: var(--wa-text-light); }
+.hero-input:focus { box-shadow: none; }
+.hero-input:disabled { opacity: 0.6; }
 
-.search-button {
-  flex-shrink: 0;
-  min-height: 44px;
-  padding: 0 1.5rem;
-  border-radius: var(--m3-shape-full);
-  background: var(--m3-primary);
-  color: var(--m3-on-primary);
-  font: var(--m3-label-large);
-  letter-spacing: 0.02em;
+.hero-submit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  position: relative;
-  overflow: hidden;
-  transition: box-shadow var(--m3-motion-short);
+  min-height: 48px;
+  min-width: 132px;
+  padding: 0 1.5rem;
+  border-radius: 999px;
+  background: var(--wa-ocean);
+  color: var(--wa-cream);
+  font-family: var(--wa-font-sans);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border: none;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease;
 }
-.search-button::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: currentColor;
-  opacity: 0;
-  transition: opacity var(--m3-motion-short);
-  pointer-events: none;
-}
-.search-button:hover:not(:disabled) { box-shadow: var(--m3-elev-1); }
-.search-button:hover:not(:disabled)::before { opacity: var(--m3-state-hover); }
-.search-button:active:not(:disabled)::before { opacity: var(--m3-state-pressed); }
-.search-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.hero-submit:hover:not(:disabled) { background: var(--wa-dusk); transform: translateY(-1px); }
+.hero-submit:disabled { opacity: 0.55; cursor: not-allowed; }
 
-.loading-spinner-small {
-  width: 16px;
-  height: 16px;
-  border: 2px solid color-mix(in srgb, currentColor 35%, transparent);
-  border-top-color: currentColor;
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--wa-cream) 30%, transparent);
+  border-top-color: var(--wa-cream);
   border-radius: 50%;
   animation: spin 900ms linear infinite;
 }
 
-/* Result section */
-.result-section {
-  flex: 1;
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 3rem;
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+.preset-label {
+  font-family: var(--wa-font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--wa-text-light);
+  margin-right: 0.25rem;
+}
+.preset-chip {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--wa-ocean) 25%, transparent);
+  border-radius: 999px;
+  padding: 0.375rem 0.875rem;
+  font-family: var(--wa-font-sans);
+  font-size: 0.8125rem;
+  color: var(--wa-ocean);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.preset-chip:hover:not(:disabled) {
+  background: var(--wa-ocean);
+  color: var(--wa-cream);
+  border-color: var(--wa-ocean);
+}
+.preset-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.hero-stats {
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+  margin-top: 2.25rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--wa-sand) 60%, transparent);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-value {
+  font-family: var(--wa-font-serif);
+  font-size: 1.5rem;
+  font-style: italic;
+  color: var(--wa-terra);
+  font-weight: 500;
+}
+.stat-label {
+  font-family: var(--wa-font-sans);
+  font-size: 0.75rem;
+  color: var(--wa-text-mid);
+  letter-spacing: 0.03em;
+}
+.stat-divider {
+  width: 1px;
+  background: color-mix(in srgb, var(--wa-sand) 70%, transparent);
 }
 
-.result-container {
-  background: var(--m3-surface-container-low);
-  border-radius: var(--m3-shape-xl);
-  padding: clamp(1.5rem, 3vw, 2.5rem);
-  box-shadow: var(--m3-elev-1);
-  transition: background var(--m3-motion-medium), box-shadow var(--m3-motion-medium);
-  min-height: 240px;
+/* Phone mocks */
+.hero-mock {
+  position: relative;
+  height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mock-phone {
+  position: absolute;
+  width: 240px;
+  border-radius: 38px;
+  padding: 10px;
+  background: var(--wa-ocean);
+  box-shadow: 0 30px 60px -20px color-mix(in srgb, var(--wa-ocean) 55%, transparent);
+}
+.mock-phone--main {
+  top: 10px;
+  left: 50%;
+  transform: translateX(-55%) rotate(-4deg);
+  height: 420px;
+}
+.mock-phone--side {
+  top: 130px;
+  right: 0;
+  transform: rotate(6deg);
+  width: 220px;
+  height: 260px;
+  background: var(--wa-terra);
+}
+.mock-notch {
+  width: 60px;
+  height: 5px;
+  background: color-mix(in srgb, var(--wa-cream) 40%, transparent);
+  border-radius: 999px;
+  margin: 4px auto 8px;
+}
+.mock-screen {
+  background: var(--wa-cream);
+  border-radius: 28px;
+  padding: 1.25rem 1.25rem 1.5rem;
+  height: calc(100% - 22px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.mock-screen--compact {
+  background: var(--wa-warm);
+  padding: 1rem;
+  gap: 0.5rem;
 }
 
-.initial-state {
-  text-align: center;
-  padding: 3rem 1.5rem;
-  color: var(--m3-on-surface-variant);
+.mock-header { display: flex; justify-content: space-between; align-items: center; }
+.mock-chip {
+  font-family: var(--wa-font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--wa-terra);
 }
-.initial-icon {
-  font-size: 3.5rem;
-  margin-bottom: 1rem;
-  line-height: 1;
+.mock-time {
+  font-family: var(--wa-font-sans);
+  font-size: 0.75rem;
+  color: var(--wa-text-light);
 }
-.initial-state h3 {
-  font: var(--m3-title-large);
-  color: var(--m3-on-surface);
-  margin: 0 0 0.5rem;
+.mock-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-.initial-state p {
-  font: var(--m3-body-medium);
-  color: var(--m3-on-surface-variant);
+.mock-title span {
+  font-family: var(--wa-font-sans);
+  font-size: 0.75rem;
+  color: var(--wa-text-light);
+  letter-spacing: 0.04em;
+}
+.mock-title strong {
+  font-family: var(--wa-font-serif);
+  font-size: 1.25rem;
+  color: var(--wa-ocean);
+  font-style: italic;
+  font-weight: 500;
+}
+.mock-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+.mock-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--wa-font-sans);
+  font-size: 0.8125rem;
+  color: var(--wa-text-dark);
+}
+.mock-list li b { color: var(--wa-terra); margin-right: 4px; font-weight: 600; }
+.mock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wa-sage);
+}
+.dot-amber { background: var(--wa-amber); }
+.dot-sage  { background: var(--wa-sage); }
+.dot-terra { background: var(--wa-terra); }
+.dot-ocean { background: var(--wa-ocean); }
+
+.mock-tag {
+  font-family: var(--wa-font-sans);
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--wa-cream);
+  background: var(--wa-terra);
+  padding: 3px 10px;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+.mock-quote {
+  font-family: var(--wa-font-serif);
+  font-size: 1rem;
+  color: var(--wa-ocean);
+  font-style: italic;
+  line-height: 1.4;
   margin: 0;
 }
-
-.loading-container {
-  text-align: center;
-  padding: 2.5rem 1rem;
-  color: var(--m3-on-surface-variant);
-}
-.loading-spinner {
-  border: 4px solid color-mix(in srgb, var(--m3-primary) 18%, transparent);
-  border-top-color: var(--m3-primary);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 900ms linear infinite;
-  margin: 0 auto 0.75rem;
-}
-.loading-text {
-  font: var(--m3-body-large);
-  color: var(--m3-on-surface-variant);
+.mock-model {
+  margin-top: auto;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 0.6875rem;
+  color: var(--wa-text-light);
+  letter-spacing: 0.04em;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .hero-section { padding: 2.5rem 1rem 2rem; }
-  .hero-subtitle { margin-bottom: 2rem; }
-  .search-input-group {
-    flex-direction: row;
-    padding: 0.25rem 0.25rem 0.25rem 1rem;
-  }
-  .search-button { padding: 0 1.125rem; }
-  .result-section { padding: 1.25rem 0.75rem 2rem; }
+/* Result */
+.result-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
 }
 
-@media (max-width: 480px) {
-  .hero-title { font-size: 1.875rem; line-height: 1.2; }
-  .hero-subtitle { font-size: 0.9375rem; }
-  .search-input-group {
-    flex-direction: column;
-    border-radius: var(--m3-shape-lg);
-    padding: 0.75rem;
-    gap: 0.75rem;
-  }
-  .search-input { padding: 0.5rem 0.5rem; width: 100%; }
-  .search-button { width: 100%; min-height: 48px; }
-  .result-container { padding: 1.25rem; border-radius: var(--m3-shape-lg); }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+@media (max-width: 960px) {
+  .hero-content { grid-template-columns: 1fr; }
+  .hero-mock { height: 360px; margin-top: 1rem; }
+  .mock-phone--main { width: 200px; height: 340px; }
+  .mock-phone--side { width: 170px; height: 220px; top: 120px; }
 }
 
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 300ms var(--m3-easing-standard),
-              transform 300ms var(--m3-easing-standard);
+@media (max-width: 640px) {
+  .hero { padding: 2.5rem 1.125rem 3rem; }
+  .hero-search { flex-direction: column; align-items: stretch; border-radius: 24px; padding: 0.5rem; }
+  .hero-input { padding: 0.75rem 1rem; }
+  .hero-submit { width: 100%; }
+  .hero-mock { display: none; }
+  .hero-stats { flex-wrap: wrap; gap: 1rem; }
+  .stat-divider { display: none; }
 }
-.fade-enter-from { opacity: 0; transform: translateY(12px); }
-.fade-leave-to   { opacity: 0; transform: translateY(-12px); }
-.fade-enter-to, .fade-leave-from { opacity: 1; transform: translateY(0); }
 </style>

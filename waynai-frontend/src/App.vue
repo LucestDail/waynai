@@ -22,7 +22,12 @@ onMounted(() => {
 
     <footer class="footer">
       <div class="footer-container">
-        <p>&copy; 2024 WaynAI. "Every Way, Your Way — with WaynAI"</p>
+        <div class="footer-brand">
+          <span class="footer-logo">wayn<em>ai</em></span>
+          <span class="footer-dot" aria-hidden="true"></span>
+        </div>
+        <p class="footer-tag">Every Way, Your Way — with WaynAI</p>
+        <p class="footer-copy">&copy; 2026 WaynAI · AI 기반 여행 어시스턴트</p>
       </div>
     </footer>
     
@@ -46,11 +51,11 @@ onMounted(() => {
 }
 
 .footer {
-  background: var(--m3-surface-container-low);
-  border-top: 1px solid var(--m3-outline-variant);
-  padding: 1.25rem 0;
+  background: var(--wa-ocean);
+  color: var(--wa-cream);
+  padding: 2.5rem 0 2rem;
   margin-top: auto;
-  transition: background var(--m3-motion-medium), border-color var(--m3-motion-medium);
+  transition: background var(--m3-motion-medium);
 }
 
 .footer-container {
@@ -58,12 +63,47 @@ onMounted(() => {
   margin: 0 auto;
   padding: 0 2rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.footer p {
-  color: var(--m3-on-surface-variant);
-  font: var(--m3-body-small);
+.footer-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.125rem;
+  font-family: var(--wa-font-serif);
+  font-size: 1.625rem;
+  font-weight: 500;
+  color: var(--wa-cream);
+}
+.footer-logo em {
+  color: var(--wa-amber);
+  font-style: italic;
+  font-weight: 500;
+}
+.footer-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--wa-amber);
+  margin-left: 4px;
+  transform: translateY(-2px);
+}
+
+.footer-tag {
+  font-family: var(--wa-font-serif);
+  font-style: italic;
+  font-size: 1.125rem;
+  color: var(--wa-sand);
   margin: 0;
-  letter-spacing: 0.02em;
+}
+.footer-copy {
+  font-family: var(--wa-font-sans);
+  font-size: 0.8125rem;
+  color: color-mix(in srgb, var(--wa-cream) 70%, transparent);
+  letter-spacing: 0.04em;
+  margin: 0;
 }
 </style>
