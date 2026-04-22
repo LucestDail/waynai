@@ -2,6 +2,7 @@ package com.waynai.demo.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.waynai.demo.dto.NaverBlogSearchDto;
+import com.waynai.demo.dto.NaverLocalSearchDto;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -124,6 +125,43 @@ public class NaverApiClient {
      */
     public NaverBlogSearchDto searchBlog(String query) {
         return searchBlog(query, 10, 1, "sim");
+    }
+
+    /**
+     * 네이버 지역(Local) 검색 — 좌표(mapx/mapy) 를 포함하는 장소 결과.
+     * @param query   검색어 (예: "서울 경복궁 근처 맛집")
+     * @param display 1 ~ 5 (Naver API 제한)
+     * @param sort    random | comment
+     */
+    public NaverLocalSearchDto searchLocal(String query, Integer display, String sort) {
+        try {
+            if (display == null || display < 1) display = 5;
+            if (display > 5) display = 5;
+            if (sort == null || sort.isBlank()) sort = "random";
+
+            String encodedQuery = URLEncoder.encode(query, "UTF-8");
+            // 기본 blog 용 URL 이 apiUrl(.../search/blog) 이므로 host+path 를 재조립
+            String base = apiUrl.replaceFirst("/blog$", "/local.json");
+            if (!base.endsWith("/local.json")) {
+                base = "https://openapi.naver.com/v1/search/local.json";
+            }
+            String fullApiUrl = String.format("%s?query=%s&display=%d&sort=%s",
+                    base, encodedQuery, display, sort);
+
+            log.info("네이버 지역검색 시작: query={}, display={}, sort={}", query, display, sort);
+
+            Map<String, String> requestHeaders = new HashMap<>();
+            requestHeaders.put("X-Naver-Client-Id", clientId);
+            requestHeaders.put("X-Naver-Client-Secret", clientSecret);
+
+            String body = get(fullApiUrl, requestHeaders);
+            NaverLocalSearchDto result = objectMapper.readValue(body, NaverLocalSearchDto.class);
+            log.info("네이버 지역검색 완료: items={}", result.getItems() == null ? 0 : result.getItems().size());
+            return result;
+        } catch (Exception e) {
+            log.error("네이버 지역검색 실패", e);
+            throw new RuntimeException("네이버 지역검색 실패: " + e.getMessage(), e);
+        }
     }
 
     /**

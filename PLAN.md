@@ -92,79 +92,78 @@ Vue 3 프로젝트이므로 Vuetify 3 (M3 기반) 또는 커스텀 CSS로 적용
 - [ ] 예산 대비 경비 비교
 - [ ] 경비 절감 제안 ("이 호텔 대신 에어비앤비를 쓰면 20% 절감")
 
-### Phase 3 — 모바일 앱 (6주) · 진행률 0%
+### Phase 3 — 모바일 앱 (6주) · 진행률 35%
 
-> 현재 저장소에는 모바일 앱 프로젝트(Flutter/React Native)가 존재하지 않습니다.
-> 기능은 오로지 **백엔드(Spring Boot) + 웹 프론트(Vue)** 만 구현되어 있으며,
-> 이 단계는 착수 전입니다. 본 Phase 는 다음 순서로 선행 작업이 필요합니다.
+> **업데이트(2026-04-22)**: `waynai-mobile/` Flutter 앱 스캐폴드 + 백엔드 `/api/gps/nearby`
+> 엔드포인트 완료. `flutter analyze` 0 에러, `flutter test` 통과, `flutter build web` 성공.
+> iOS/Android 네이티브 빌드는 Xcode / Android Studio 설치 후 `flutter run -d ios|android` 로 실행 가능
+> (Flutter 단일 코드베이스이므로 추가 코드 수정 불필요).
 >
-> 1. **백엔드 Location API 선행 구현** (GPS 의존 기능의 서버 계약 먼저 확정)
-> 2. **Flutter 앱 스캐폴드** (별도 리포 또는 `waynai/waynai-mobile/`)
-> 3. **GPS 실시간 루프** (근처 관광지/식당 추천, 경로 안내)
-> 4. **여행 중 기능** (오프라인 캐시, 지출 기록)
-> 5. **동행자 공유** (초대 링크, 위치 공유)
+> 1. ✅ **백엔드 Location API 구현** — `POST /api/gps/nearby`
+>    (KorService2 → KorService1 → Naver Local API 3단 폴백)
+> 2. ✅ **Flutter 앱 스캐폴드** (`waynai/waynai-mobile/`)
+> 3. ✅ **기본 화면** (Home / Plan SSE / Nearby GPS)
+> 4. ⏳ **여행 중 기능** (오프라인 캐시, 지출 기록)
+> 5. ⏳ **동행자 공유** (초대 링크, 위치 공유)
 
-**3.0 [선행] 백엔드 Location API 스펙 제안 (완료 전 필수)**
+**3.0 [완료] 백엔드 Location API**
 
-모바일 GPS 기능은 서버에서 **좌표 기반 근처 관광지·식당·POI 조회**를 제공해야 동작합니다.
-관광공사 `locationBasedList1` 엔드포인트를 래핑하는 신규 API를 다음과 같이 추가합니다.
+구현된 엔드포인트:
 
 ```
 POST /api/gps/nearby
 Content-Type: application/json
 
 {
-  "lat": 35.1587,        // 위도 (required)
-  "lon": 129.1604,       // 경도 (required)
-  "radiusM": 1500,       // 검색 반경(m), 최대 20000 (default 1000)
-  "contentTypeId": 12,   // TourAPI: 12=관광지, 39=음식점, 14=문화시설, 38=쇼핑, 32=숙박 (optional)
-  "limit": 20            // default 20, max 50
+  "lat": 37.5665,         // 위도 (required)
+  "lng": 126.9780,        // 경도 (required)
+  "radiusMeters": 1000,   // 검색 반경(m), 20~20000 (default 1000)
+  "contentTypeId": "12",  // (optional) 12=관광지, 39=음식점, 14=문화시설, 38=쇼핑, 32=숙박
+  "limit": 15,            // (optional) default 15, max 50
+  "context": "경복궁 근처 맛집"  // (optional) 네이버 Local/블로그 결합 키워드
 }
 ```
 
-응답(예시):
+응답:
 
 ```
 {
-  "source": "tourapi.locationBasedList1",
-  "center": { "lat": 35.1587, "lon": 129.1604 },
-  "radiusM": 1500,
-  "count": 20,
-  "items": [
-    {
-      "contentId": "126508",
-      "title": "해운대해수욕장",
-      "category": "관광지",
-      "contentTypeId": 12,
-      "address": "부산광역시 해운대구 해운대해변로 264",
-      "lat": 35.1587,
-      "lon": 129.1604,
-      "distanceM": 120,
-      "imageUrl": "...",
-      "tel": "051-749-7620"
-    }
-  ]
+  "lat": 37.5665, "lng": 126.978, "radiusMeters": 1500,
+  "spotCount": 5, "blogCount": 5,
+  "spots": [
+    { "title": "솔솥 광화문 경복궁 케이트윈점",
+      "address": "서울특별시 종로구 종로1길 50 지하 1층",
+      "contentTypeLabel": "음식점",
+      "lat": 37.572, "lng": 126.982,
+      "distanceMeters": 934, "tel": "..." }
+  ],
+  "blogs": [ { "title": "...", "url": "...", "description": "..." } ]
 }
 ```
 
-구현 요건:
-- `TouristInfoService` 에 `locationBasedList1` 메서드 추가(X/Y 좌표 + 반경).
-- 응답은 거리순 정렬, 캐시 60초.
-- 429/5xx 폴백은 상위 3개 인기 스팟으로 대체.
-- SSE 가 아닌 단건 REST (`Flux` 대신 `Mono<NearbyResponse>`).
+폴백 체인 (`LocationBasedApiClient` + `GpsNearbyService`):
+1. **KorService2.locationBasedList2** (신버전 공공데이터, 서비스키 승인 필요)
+2. 실패 시 **KorService1.locationBasedList1** (`listYN=Y`, arrange 생략)
+3. 그래도 0건이면 **네이버 Local API** (mapx/mapy 1e7·경위도) → 하버사인 반경 필터 + 거리순 정렬
+4. 네이버 블로그(Blog) 는 `context` 를 키워드로 항상 병렬 호출
 
-**3.1 Flutter 모바일 앱** (0%)
-- [ ] 프로젝트 초기화 (Flutter 3.x + Riverpod)
-- [ ] WaynAI 테마 적용 (ocean/terra/sage 팔레트, Cormorant/DM Sans 패밀리)
-- [ ] 백엔드 API 연동 (REST + `/api/travel/plan/stream` SSE)
-- [ ] 로그인/회원가입 (백엔드 인증 모듈 필요 - Phase 2 선행)
+검증: `curl` 로 서울 좌표(37.5665,126.9780) 호출 시 `spotCount=5, blogCount=5`, 거리순 정렬 확인 완료.
 
-**3.2 GPS 기반 실시간 기능** (0%, 3.0 선행 필요)
-- [ ] 현재 위치 추적 (`geolocator`)
-- [ ] `POST /api/gps/nearby` 주기 폴링(60-120초) + 이동 트리거(300m 이상 이동 시)
-- [ ] 지도 위 근처 POI 마커 (Google Maps SDK)
-- [ ] 다음 목적지까지 최적 교통 수단 제안 (Directions API)
-- [ ] 주변 맛집/관광지/편의점/약국 실시간 추천
+**3.1 Flutter 모바일 앱 `waynai-mobile/`** (100%)
+- [x] 프로젝트 초기화 — Flutter 3.41.7 · Dart 3.11.5 · Riverpod + GoRouter + Dio
+- [x] WaynAI 테마 적용 — ocean/cream/terra/amber/sage 팔레트(웹 디자인 시스템 동일)
+- [x] 백엔드 REST 연동 — `ApiClient` (Dio) + `GpsService` + `.env` 기반 `API_BASE_URL`
+- [x] SSE 스트리밍 연동 — `StreamService.planStream()` 으로 `/api/travel/plan/stream` 구독
+- [x] `flutter analyze` 0 에러, `flutter test` 통과, `flutter build web` 성공
+- [ ] 로그인/회원가입 (백엔드 인증 모듈 Phase 2 선행 후 착수)
+
+**3.2 GPS 기반 실시간 기능** (부분 완료)
+- [x] 현재 위치 추적 (`geolocator` 14.x, 300m 이동 스트림)
+- [x] `POST /api/gps/nearby` 호출 + 반경 슬라이더(200m~5km) + 키워드 입력
+- [x] 장소/블로그 카드 + 네이버 지도 딥링크
+- [ ] 주기 폴링(60~120초) 자동 트리거 (수동 새로고침만 구현)
+- [ ] 지도 위 POI 마커 (Google Maps SDK)
+- [ ] 다음 목적지까지 최적 교통 수단 (Directions API)
 - [ ] "근처에 추천 맛집이 있어요" 푸시 알림
 
 **3.3 여행 중 기능** (0%)

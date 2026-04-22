@@ -56,6 +56,7 @@ waynai/
 ### 사전 요구사항
 - JDK 17+, Maven (또는 `mvnw`)
 - Node.js 18+, npm
+- (선택) Flutter 3.x — 모바일 앱 빌드/실행 시
 
 ### 개발 모드
 ```bash
@@ -68,7 +69,22 @@ cd waynai-backend && ./mvnw spring-boot:run
 ./start-frontend-dev.sh
 # 또는
 cd waynai-frontend && npm install && npm run dev
+
+# 모바일 앱 (Flutter 3.41+)
+cd waynai-mobile
+flutter pub get
+
+# 웹(Chrome) 으로 바로 실행
+flutter run -d chrome
+
+# iOS 시뮬레이터 (Xcode 필요)
+flutter run -d ios
+
+# Android 에뮬레이터 (Android Studio 필요, 백엔드는 http://10.0.2.2:8080 으로 자동 인식)
+flutter run -d android
 ```
+
+`waynai-mobile/.env` 에서 `API_BASE_URL` 을 수정해 백엔드 주소를 바꿀 수 있습니다.
 
 ### 운영 모드
 ```bash
@@ -92,7 +108,7 @@ cp .env.example .env
 | 범주 | 변수 | 필수 | 설명 |
 |------|------|:---:|------|
 | Gemini | `GEMINI_API_KEY` | ✅ | Google Gemini API 키 |
-| Gemini | `GEMINI_MODEL_CHAIN` |  | 핫스왑 모델 체인(콤마구분). 기본: `gemini-2.5-flash-lite,gemini-2.0-flash-lite,gemini-2.0-flash,gemini-2.5-flash,gemini-2.5-pro` |
+| Gemini | `GEMINI_MODEL_CHAIN` |  | 핫스왑 모델 체인(콤마구분). 기본: `gemini-3.1-flash-lite-preview,gemini-3-flash-preview,gemini-3.1-pro-preview` |
 | Gemini | `GEMINI_TIMEOUT_MS` / `GEMINI_RETRY_PER_MODEL` |  | 타임아웃(ms) / 모델당 재시도 횟수 |
 | Naver | `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | ✅ | 네이버 검색 API 자격 증명 |
 | 공공데이터 | `TOUR_API_SERVICE_KEY` | ✅ | 한국관광공사 API 서비스 키. **반드시 Decoding(원문) 값**을 넣을 것. 코드 내부에서 `URLEncoder.encode()` 로 자동 인코딩되므로 `%2B`/`%2F`/`%3D` 가 포함된 Encoded 값을 넣으면 이중 인코딩되어 `SERVICE_KEY_NOT_REGISTERED_ERROR` 가 발생합니다. 값에 `+`, `/`, `=` 가 포함되므로 `.env` 에서는 큰따옴표로 감싸 저장하세요. |
