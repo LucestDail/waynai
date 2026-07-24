@@ -7,10 +7,9 @@
       </RouterLink>
 
       <nav class="nav-links" aria-label="주요 메뉴">
-        <RouterLink to="/" class="nav-link">Home</RouterLink>
-        <RouterLink to="/travel-plan" class="nav-link">여행 계획</RouterLink>
-        <RouterLink to="/tourist-info" class="nav-link">관광지</RouterLink>
-        <RouterLink to="/about" class="nav-link">About</RouterLink>
+        <RouterLink to="/" class="nav-link">홈</RouterLink>
+        <RouterLink to="/travel-plan" class="nav-link">세부 계획</RouterLink>
+        <RouterLink to="/about" class="nav-link">소개</RouterLink>
       </nav>
 
       <div class="nav-actions">
@@ -32,10 +31,9 @@
     </div>
 
     <div v-if="isMobileMenuOpen" class="mobile-menu">
-      <RouterLink to="/" class="mobile-link" @click="closeMobileMenu">Home</RouterLink>
-      <RouterLink to="/travel-plan" class="mobile-link" @click="closeMobileMenu">여행 계획</RouterLink>
-      <RouterLink to="/tourist-info" class="mobile-link" @click="closeMobileMenu">관광지 정보</RouterLink>
-      <RouterLink to="/about" class="mobile-link" @click="closeMobileMenu">About</RouterLink>
+      <RouterLink to="/" class="mobile-link" @click="closeMobileMenu">홈</RouterLink>
+      <RouterLink to="/travel-plan" class="mobile-link" @click="closeMobileMenu">세부 계획</RouterLink>
+      <RouterLink to="/about" class="mobile-link" @click="closeMobileMenu">소개</RouterLink>
       <button @click="toggleThemeAndClose" class="mobile-theme-toggle">
         <span class="theme-icon">{{ isDarkMode ? '☀︎' : '☾' }}</span>
         <span class="theme-text">{{ isDarkMode ? '라이트 모드' : '다크 모드' }}</span>

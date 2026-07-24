@@ -5,6 +5,20 @@
 {
   "intent": "keyword|area|area_keyword|none",
   "keyword": "키워드 (intent가 keyword 또는 area_keyword인 경우)",
+  "international": false,
+  "destination": "도착지명 (국내/해외 공통, 예: 부산, 오사카, 파리)",
+  "days": 3,
+  "origin": "출발지명 (예: 서울). 없으면 null",
+  "departDate": "YYYY-MM 또는 YYYY-MM-DD. 없으면 null",
+  "returnDate": "YYYY-MM 또는 YYYY-MM-DD. 없으면 null",
+  "style": "배낭여행|신혼여행|효도여행|가족|도보|힐링 등. 없으면 null",
+  "budgetLevel": "저렴|보통|고급 또는 사용자가 말한 예산. 없으면 null",
+  "companions": "커플|가족|친구|혼자|단체 등. 없으면 null",
+  "segments": [
+    { "title": "권역명(예: 로마·바티칸)", "days": 4, "dates": "3/30~4/2 또는 null",
+      "area": "대표 도시", "keywords": "이 권역 키워드",
+      "mustInclude": ["사용자가 명시한 이 권역의 장소·식당명을 그대로"] }
+  ],
   "area": {
     "name": "지역명",
     "code": "지역코드",
@@ -16,11 +30,31 @@
   "confidence": 0.95
 }
 
+[권역 분해 — segments]
+여러 도시/권역을 도는 여행(또는 5일 이상 장기)이면 `segments` 에 권역별로 나눠 담으세요.
+- 사용자가 언급한 **모든 도시·장소·식당명을 해당 권역의 mustInclude 에 빠짐없이** 넣으세요(원문 그대로, 생략 금지).
+- 각 권역 days 합계 = 전체 days 와 맞추세요.
+- 단일 도시·단기(4일 이하)면 segments 를 빈 배열 [] 로 두세요.
+
+[자연어 해석 — 핵심]
+사용자는 콤보박스가 아니라 자연어 한 문장으로 요청합니다. 문장에서 아래를 추론해 채우세요.
+- `days`: "2박3일"→3, "당일"→1, "일주일"→7. 숙박/일수 언급 없으면 목적지 규모에 맞는 합리적 기본값(국내 2~3, 해외 4).
+- `origin`/`departDate`/`returnDate`: 문장에 있으면 채우고 없으면 null (억지로 만들지 말 것).
+- `style`/`budgetLevel`/`companions`: 문장 뉘앙스로 추론("아이랑"→가족, "배낭"→배낭여행, "가성비"→저렴).
+- 자리표시자(XX 등) 금지. 모르면 해당 필드는 null.
+
 분석 기준:
 1. keyword: "맛집", "카페", "박물관", "해변", "산", "쇼핑" 등 관광 키워드
 2. area: "서울", "부산", "제주도", "강릉", "경주" 등 지역명
 3. area_keyword: "서울 맛집", "제주도 카페", "부산 해변" 등 지역+키워드 조합
-4. none: 제공된 지역 정보에 해당하는 지역이 없거나 명확하지 않은 경우
+4. none: 목적지가 명확하지 않은 경우
+
+[국내/해외 판정 — 매우 중요]
+- `destination` 에는 사용자가 가려는 실제 도시/지역명을 반드시 채우세요 (국내든 해외든).
+- 대한민국 내 지역이면 `international=false` 로 하고 아래 지역코드로 `area` 를 채우세요.
+- 대한민국 밖(예: 오사카, 도쿄, 파리, 방콕, 다낭, 뉴욕 등)이면 `international=true` 로 하고
+  `area` 는 **JSON null**(문자열 "null" 이 아니라 널 리터럴)로 두세요. `intent` 는 area 또는 area_keyword.
+- 값이 없는 필드는 문자열 "null"/"없음" 이 아니라 **JSON null** 로 두세요.
 
 지역 코드 매핑 (아래 CSV 데이터를 참고하여 정확한 코드를 선택하세요):
 - 서울: 11

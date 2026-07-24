@@ -23,9 +23,9 @@ const shouldShowResult = computed(() => {
 
 const presets = [
   '부산 해운대에서 2박 3일, 해산물과 야경 위주',
-  '제주 서귀포 가족 여행 3박 4일, 아이 있는 코스',
-  '강릉 커피 투어 당일치기',
-  '전주 한옥마을 + 맛집 위주 1박 2일',
+  '오사카 3박 4일 커플 여행, 맛집과 쇼핑',
+  '제주 가족 여행 3박 4일, 아이랑 갈 만한 코스',
+  '방콕 5박 6일 배낭여행, 가성비 위주',
 ];
 
 const usePreset = (preset: string) => {
@@ -61,8 +61,8 @@ onUnmounted(() => {
             <em>함께</em> 만들어가요
           </h1>
           <p class="hero-lead">
-            관광공사 공공데이터, 네이버 리뷰, 그리고 Gemini 3 핫스왑 모델이
-            실시간으로 움직이는 여행 파이프라인. 한 줄 질의로 완성되는 맞춤 계획.
+            가고 싶은 곳을 한 문장으로 적어주세요. 항공권부터 하루 동선, 예상 비용까지
+            실제 정보를 바탕으로 맞춤 여행 일정을 만들어 드립니다.
           </p>
 
           <form class="hero-search" @submit.prevent="handleSearch">
@@ -80,7 +80,7 @@ onUnmounted(() => {
           </form>
 
           <div class="preset-row">
-            <span class="preset-label">추천 질의</span>
+            <span class="preset-label">이렇게 적어보세요</span>
             <button
               v-for="preset in presets"
               :key="preset"
@@ -95,18 +95,18 @@ onUnmounted(() => {
 
           <div class="hero-stats">
             <div class="stat">
-              <span class="stat-value">3</span>
-              <span class="stat-label">Gemini 3 핫스왑 레이어</span>
+              <span class="stat-value">항공권</span>
+              <span class="stat-label">실시간 최저가 · 예약 연결</span>
             </div>
             <div class="stat-divider" aria-hidden="true"></div>
             <div class="stat">
-              <span class="stat-value">실시간</span>
-              <span class="stat-label">SSE 진행 이벤트</span>
+              <span class="stat-value">동선</span>
+              <span class="stat-label">지도로 보는 하루 코스</span>
             </div>
             <div class="stat-divider" aria-hidden="true"></div>
             <div class="stat">
-              <span class="stat-value">2 RAG</span>
-              <span class="stat-label">관광공사 + 네이버</span>
+              <span class="stat-value">국내·해외</span>
+              <span class="stat-label">어디든 한 문장으로</span>
             </div>
           </div>
         </div>
@@ -138,7 +138,7 @@ onUnmounted(() => {
               <p class="mock-quote">
                 "해운대의 아침 산책은 동백섬 → 달맞이고개로 이어져야 진짜예요."
               </p>
-              <div class="mock-model">gemini-3.1-pro-preview</div>
+              <div class="mock-model">맞춤 여행 도우미</div>
             </div>
           </div>
         </aside>

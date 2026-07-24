@@ -15,20 +15,13 @@ const router = createRouter({
       component: () => import('../views/TravelPlanView.vue'),
     },
     {
-      path: '/tourist-info',
-      name: 'tourist-info',
-      component: () => import('../views/TouristInfoView.vue'),
-    },
-    {
-      path: '/recommendations',
-      name: 'recommendations',
-      component: () => import('../views/RecommendationsView.vue'),
-    },
-    {
       path: '/about',
       name: 'about',
       component: () => import('../views/AboutView.vue'),
     },
+    // 단순화(2026-07): 관광지 검색/추천 화면 제거 → 홈 바로시작 + 세부 계획에 집중.
+    { path: '/tourist-info', redirect: '/' },
+    { path: '/recommendations', redirect: '/' },
   ],
 })
 

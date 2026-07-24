@@ -1,133 +1,70 @@
 <template>
-  <div v-if="isVisible" class="progress-container">
-    <header class="progress-header">
-      <div class="header-eyebrow">waynai · 여행 어시스턴트</div>
-      <h3 class="progress-title">{{ headerTitle }}</h3>
-      <p class="progress-subtitle">{{ headerSubtitle }}</p>
+  <div v-if="isVisible" class="finder">
+    <header class="finder-head">
+      <span class="finder-eyebrow">여행 플래너</span>
+      <h3 class="finder-title">{{ headerTitle }}</h3>
+      <p class="finder-sub">{{ headerSubtitle }}</p>
     </header>
 
-    <!-- 단계 스텝퍼 -->
-    <ol class="step-list">
+    <!-- 이해한 여행 요약 (개발 용어 없이 사람 언어로) -->
+    <div v-if="understood.length" class="understood">
+      <span v-for="(u, i) in understood" :key="i" class="understood-chip">
+        <span class="uc-key">{{ u.key }}</span>
+        <span class="uc-val">{{ u.val }}</span>
+      </span>
+    </div>
+
+    <!-- 진행 단계 -->
+    <ol class="steps">
       <li
         v-for="(step, index) in steps"
         :key="step.id"
-        class="step-item"
-        :class="{
-          'is-active': activeIndex === index,
-          'is-complete': activeIndex > index || isCompleted,
-        }"
+        class="step"
+        :class="{ active: activeIndex === index && !isCompleted, done: activeIndex > index || isCompleted }"
       >
-        <span class="step-dot">
+        <span class="step-icon">
           <svg v-if="activeIndex > index || isCompleted" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z" fill="currentColor" />
           </svg>
-          <span v-else-if="activeIndex === index" class="step-dot-pulse" />
-          <span v-else class="step-dot-idle" />
+          <span v-else-if="activeIndex === index" class="spin-ring" />
+          <span v-else class="idle-dot" />
         </span>
         <div class="step-text">
           <strong>{{ step.label }}</strong>
-          <span>{{ step.caption }}</span>
+          <span>{{ activeIndex === index && !isCompleted ? step.doing : step.caption }}</span>
         </div>
       </li>
     </ol>
 
-    <!-- 라이브 수집 내역 -->
-    <div class="live-grid">
-      <section class="live-card">
-        <div class="live-head">
-          <span class="live-tag tag-intent">의도 분석</span>
-          <span class="live-count">
-            {{ progress.intent ? '완료' : '대기 중' }}
-          </span>
-        </div>
-        <div v-if="progress.intent" class="live-body">
-          <div class="intent-row">
-            <span class="intent-key">분류</span>
-            <span class="intent-val">{{ progress.intent.intent || '-' }}</span>
-          </div>
-          <div class="intent-row">
-            <span class="intent-key">지역</span>
-            <span class="intent-val">
-              {{ progress.intent.area?.name || '미지정' }}
-              <small v-if="progress.intent.area?.sigungu?.name">· {{ progress.intent.area.sigungu.name }}</small>
-            </span>
-          </div>
-          <div class="intent-row">
-            <span class="intent-key">키워드</span>
-            <span class="intent-val">{{ progress.intent.keyword || '없음' }}</span>
-          </div>
-        </div>
-        <p v-else class="live-empty">사용자 입력을 해석하는 중입니다.</p>
-      </section>
-
-      <section class="live-card">
-        <div class="live-head">
-          <span class="live-tag tag-tour">관광공사 API</span>
-          <span class="live-count">{{ tourCountLabel }}</span>
-        </div>
-        <ul v-if="progress.sources.tour?.items?.length" class="live-list">
-          <li v-for="(item, i) in progress.sources.tour.items.slice(0, 5)" :key="`tour-${i}`">
-            <span class="live-item-title">{{ item.title }}</span>
-            <span v-if="item.subtitle" class="live-item-sub">{{ item.subtitle }}</span>
-          </li>
-        </ul>
-        <p v-else class="live-empty">
-          {{ isSearchingStage ? '관광지 정보를 수집 중...' : '아직 수집된 항목이 없습니다.' }}
-        </p>
-      </section>
-
-      <section class="live-card">
-        <div class="live-head">
-          <span class="live-tag tag-naver">네이버 블로그</span>
-          <span class="live-count">{{ naverCountLabel }}</span>
-        </div>
-        <ul v-if="progress.sources.naver?.items?.length" class="live-list">
-          <li v-for="(item, i) in progress.sources.naver.items.slice(0, 4)" :key="`naver-${i}`">
-            <a v-if="item.url" :href="item.url" target="_blank" rel="noopener" class="live-item-title">
-              {{ item.title }}
-            </a>
-            <span v-else class="live-item-title">{{ item.title }}</span>
-            <span v-if="item.subtitle" class="live-item-sub">{{ item.subtitle }}</span>
-          </li>
-        </ul>
-        <p v-else class="live-empty">
-          {{ isSearchingStage ? '블로그 리뷰를 수집 중...' : '참고 블로그가 없습니다.' }}
-        </p>
-      </section>
-
-      <section class="live-card live-card--model">
-        <div class="live-head">
-          <span class="live-tag tag-model">AI 모델</span>
-          <span class="live-count">{{ progress.model ? '선택됨' : '대기 중' }}</span>
-        </div>
-        <div v-if="progress.model" class="model-block">
-          <div class="model-name">{{ progress.model }}</div>
-          <div class="model-caption">Gemini 핫스왑 라우터 · 자동 선택</div>
-        </div>
-        <p v-else class="live-empty">모델이 선택되면 표시됩니다.</p>
-      </section>
+    <!-- 항공권을 찾았을 때만 친근하게 노출 -->
+    <div v-if="cheapestFlight" class="finder-flight">
+      <span class="ff-plane">✈️</span>
+      <span class="ff-text">
+        {{ cheapestFlight.origin }} → {{ cheapestFlight.destination }} 최저가
+        <strong>{{ flightPrice }}</strong> ({{ cheapestFlight.roundTrip ? '왕복' : '편도' }}) 찾음
+      </span>
     </div>
 
-    <!-- 이벤트 로그 -->
-    <div class="event-log">
-      <div class="event-log-head">실시간 로그</div>
-      <ul class="event-log-list">
-        <li v-for="(msg, idx) in recentMessages" :key="`msg-${idx}`" class="event-log-item">
-          <span class="event-tag" :class="`tag-${msg.type.split('.')[0]}`">{{ tagText(msg.type) }}</span>
-          <span class="event-text">{{ msg.text }}</span>
-        </li>
-        <li v-if="recentMessages.length === 0" class="event-log-empty">
-          이벤트 수신 대기 중...
-        </li>
-      </ul>
+    <div v-if="topHotel" class="finder-flight">
+      <span class="ff-plane">🏨</span>
+      <span class="ff-text">
+        숙소 <strong>{{ topHotel.name }}</strong>
+        <template v-if="topHotel.pricePerNightKrw"> · 1박 {{ topHotel.pricePerNightKrw.toLocaleString('ko-KR') }}원~</template> 찾음
+      </span>
     </div>
 
-    <!-- 진행률 -->
-    <div class="progress-bar-container">
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: progressPercentage + '%' }" />
+    <!-- 수집한 참고 정보(볼거리·블로그)를 대기 중에 노출 -->
+    <div v-if="collected.length" class="finder-collected">
+      <span class="fc-label">참고하는 정보</span>
+      <div class="fc-list">
+        <span v-for="(c, i) in collected" :key="i" class="fc-item">
+          <span class="fc-ic">{{ c.ic }}</span>{{ c.text }}
+        </span>
       </div>
-      <div class="progress-text">{{ stageLabel }} · {{ progressPercentage }}%</div>
+    </div>
+
+    <div class="finder-bar">
+      <div class="finder-bar-track"><div class="finder-bar-fill" :style="{ width: pct + '%' }" /></div>
     </div>
   </div>
 </template>
@@ -141,428 +78,180 @@ const progress = computed(() => streamStore.state.progress);
 const isStreaming = computed(() => streamStore.state.isStreaming);
 const isComplete = computed(() => streamStore.state.isComplete);
 const hasError = computed(() => !!streamStore.state.error);
+const flights = computed(() => streamStore.state.flights || []);
+const topHotel = computed(() => (streamStore.state.hotels || [])[0] || null);
 
 const isVisible = computed(() =>
-  isStreaming.value ||
-  progress.value.stage !== 'idle' ||
-  progress.value.messages.length > 0
+  isStreaming.value || progress.value.stage !== 'idle' || progress.value.messages.length > 0,
 );
 
 const steps = [
-  { id: 'analyzing', label: '입력 분석', caption: '사용자 의도와 지역/키워드 파악' },
-  { id: 'searching', label: '컨텍스트 수집', caption: '관광공사 + 네이버 블로그 병렬 RAG' },
-  { id: 'generating', label: 'AI 생성', caption: 'Gemini 모델이 여행 계획을 작성' },
+  { id: 'analyzing', label: '여행 요청 이해하기', caption: '원하시는 여행을 파악해요', doing: '요청을 읽는 중…' },
+  { id: 'searching', label: '가는 길·볼거리 찾기', caption: '항공편과 가볼 만한 곳을 모아요', doing: '항공편·명소를 찾는 중…' },
+  { id: 'generating', label: '일정 완성하기', caption: '동선과 비용까지 맞춘 일정으로', doing: '일정을 짜는 중…' },
 ] as const;
 
 const STAGE_ORDER: Record<TravelStage, number> = {
-  idle: -1,
-  analyzing: 0,
-  searching: 1,
-  generating: 2,
-  completed: 3,
-  error: -1,
+  idle: -1, analyzing: 0, searching: 1, generating: 2, completed: 3, error: -1,
 };
-
 const activeIndex = computed(() => STAGE_ORDER[progress.value.stage] ?? -1);
 const isCompleted = computed(() => progress.value.stage === 'completed' || isComplete.value);
-const isSearchingStage = computed(() => progress.value.stage === 'searching');
 
-const progressPercentage = computed(() => {
+const pct = computed(() => {
   if (hasError.value) return 100;
+  if (isCompleted.value) return 100;
   const idx = activeIndex.value;
-  if (idx < 0) return 5;
-  if (progress.value.stage === 'completed') return 100;
-  // 단계별 베이스 + sources/model 수신에 따른 가중
-  const base = [20, 45, 75][idx] ?? 85;
+  if (idx < 0) return 6;
+  const base = [25, 55, 80][idx] ?? 85;
   let bonus = 0;
-  if (progress.value.intent) bonus += 5;
-  if (progress.value.sources.tour) bonus += 5;
-  if (progress.value.sources.naver) bonus += 5;
-  if (progress.value.model) bonus += 5;
-  return Math.min(98, base + bonus);
+  if (progress.value.intent) bonus += 6;
+  if (flights.value.length) bonus += 6;
+  return Math.min(96, base + bonus);
 });
 
-const tourCountLabel = computed(() => {
-  const s = progress.value.sources.tour;
-  if (!s) return '대기 중';
-  return `${s.count}건`;
+// 이해한 조건을 사람 언어로 (코드/JSON 아님)
+const understood = computed(() => {
+  const i = progress.value.intent;
+  if (!i) return [] as { key: string; val: string }[];
+  const out: { key: string; val: string }[] = [];
+  const dest = i.destination || i.area?.name;
+  if (dest) out.push({ key: '목적지', val: dest });
+  if (i.days) out.push({ key: '기간', val: `${i.days}일` });
+  if (i.origin) out.push({ key: '출발', val: i.origin });
+  if (i.departDate) out.push({ key: '출발일', val: i.departDate });
+  if (i.style) out.push({ key: '스타일', val: i.style });
+  if (i.companions) out.push({ key: '동반', val: i.companions });
+  if (i.budgetLevel) out.push({ key: '예산', val: i.budgetLevel });
+  if (i.keyword) out.push({ key: '관심사', val: i.keyword });
+  return out;
 });
 
-const naverCountLabel = computed(() => {
-  const s = progress.value.sources.naver;
-  if (!s) return '대기 중';
-  return `${s.count}건`;
+const cheapestFlight = computed(() => {
+  if (!flights.value.length) return null;
+  return [...flights.value].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity))[0];
+});
+
+// 수집된 관광지·블로그를 사람이 읽는 형태로 (개발 용어/출처명 없이).
+const collected = computed(() => {
+  const out: { ic: string; text: string }[] = [];
+  const tour = progress.value.sources.tour;
+  const naver = progress.value.sources.naver;
+  const web = progress.value.sources.web;
+  (web?.items || []).slice(0, 5).forEach((it) => { if (it.title) out.push({ ic: '🌐', text: it.title }); });
+  (tour?.items || []).slice(0, 4).forEach((it) => { if (it.title) out.push({ ic: '📍', text: it.title }); });
+  (naver?.items || []).slice(0, 4).forEach((it) => { if (it.title) out.push({ ic: '📝', text: it.title }); });
+  return out;
+});
+const flightPrice = computed(() => {
+  const f = cheapestFlight.value;
+  if (!f || typeof f.price !== 'number') return '';
+  return `${f.price.toLocaleString('ko-KR')} ${(f.currency || 'KRW').toUpperCase()}`;
 });
 
 const headerTitle = computed(() => {
-  if (hasError.value) return '오류가 발생했어요';
+  if (hasError.value) return '잠시 문제가 생겼어요';
   if (isCompleted.value) return '여행 계획이 준비됐어요';
-  if (progress.value.stage === 'generating') return 'AI가 이야기를 엮고 있어요';
-  if (progress.value.stage === 'searching') return '컨텍스트를 모으고 있어요';
-  if (progress.value.stage === 'analyzing') return '여행 의도를 들여다보는 중';
-  return '여행 어시스턴트 준비';
+  if (progress.value.stage === 'generating') return '일정을 짜고 있어요';
+  if (progress.value.stage === 'searching') return '가는 길과 볼거리를 찾고 있어요';
+  if (progress.value.stage === 'analyzing') return '요청을 이해하고 있어요';
+  return '여행 계획을 준비할게요';
 });
-
 const headerSubtitle = computed(() => {
   if (hasError.value) return streamStore.state.error || '잠시 후 다시 시도해 주세요.';
-  if (progress.value.model) return `사용 모델: ${progress.value.model}`;
-  return 'waynai 가 당신의 질의를 실시간으로 해석하고 있어요.';
+  if (isCompleted.value) return '아래에서 완성된 일정을 확인하세요.';
+  return '실제 정보를 바탕으로 맞춤 여행을 찾고 있어요.';
 });
-
-const stageLabel = computed(() => {
-  switch (progress.value.stage) {
-    case 'analyzing': return '입력 분석 중';
-    case 'searching': return '컨텍스트 수집 중';
-    case 'generating': return 'AI 생성 중';
-    case 'completed': return '완료';
-    case 'error': return '오류';
-    default: return '대기 중';
-  }
-});
-
-const recentMessages = computed(() => {
-  const msgs = progress.value.messages;
-  // 최근 8개만 노출. 시간 역순(최근이 위)로 보여주기.
-  return [...msgs].slice(-8).reverse();
-});
-
-const tagText = (type: string): string => {
-  const map: Record<string, string> = {
-    stage: '단계',
-    intent: '의도',
-    'sources.tour': '관광',
-    'sources.naver': '블로그',
-    model: '모델',
-    plan: '계획',
-    done: '완료',
-    error: '오류',
-  };
-  return map[type] ?? type;
-};
 </script>
 
 <style scoped>
-.progress-container {
+.finder {
   max-width: 960px;
-  margin: 2rem auto;
-  padding: clamp(1.5rem, 2.5vw, 2rem);
+  margin: 1.5rem auto;
+  padding: clamp(1.25rem, 2.5vw, 1.75rem);
   background: var(--wa-cream);
   border: 1px solid color-mix(in srgb, var(--wa-sand) 70%, transparent);
-  border-radius: 28px;
-  box-shadow: 0 24px 60px -32px color-mix(in srgb, var(--wa-ocean) 35%, transparent);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px -34px color-mix(in srgb, var(--wa-ocean) 32%, transparent);
   color: var(--wa-text-dark);
 }
-
-.progress-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  margin-bottom: 1.75rem;
-}
-.header-eyebrow {
-  font-family: var(--wa-font-sans);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+.finder-head { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 1.25rem; }
+.finder-eyebrow {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
   color: var(--wa-terra);
 }
-.progress-title {
-  font-family: var(--wa-font-serif);
-  font-size: clamp(1.5rem, 1.5vw + 1rem, 2rem);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--wa-ocean);
-  margin: 0;
-  font-style: italic;
+.finder-title {
+  font-family: var(--wa-font-serif); font-style: italic; font-size: clamp(1.35rem, 1.4vw + 1rem, 1.9rem);
+  color: var(--wa-ocean); margin: 0;
 }
-.progress-subtitle {
-  font-family: var(--wa-font-sans);
-  font-size: 0.9375rem;
-  color: var(--wa-text-mid);
-  margin: 0;
-}
+.finder-sub { font-size: 0.9rem; color: var(--wa-text-mid); margin: 0; }
 
-.step-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1.75rem;
-}
-.step-item {
-  display: flex;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
+.understood { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.understood-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem;
   background: color-mix(in srgb, var(--wa-sand) 40%, var(--wa-cream));
-  border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--wa-sand) 60%, transparent);
-  transition: background 180ms ease, border-color 180ms ease;
+  border-radius: 999px; padding: 0.3rem 0.75rem; font-size: 0.82rem;
 }
-.step-item.is-active {
-  background: var(--wa-ocean);
-  color: var(--wa-cream);
-  border-color: transparent;
-  box-shadow: 0 12px 30px -16px color-mix(in srgb, var(--wa-ocean) 60%, transparent);
-}
-.step-item.is-complete {
-  background: var(--wa-sage);
-  color: var(--wa-cream);
-  border-color: transparent;
-}
-.step-dot {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-}
-.step-item.is-active .step-dot { background: var(--wa-amber); color: var(--wa-ocean); }
-.step-item.is-complete .step-dot { background: var(--wa-cream); color: var(--wa-sage-dark); }
-.step-dot-pulse,
-.step-dot-idle {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.step-dot-pulse { animation: pulse 1.4s infinite; }
-.step-dot-idle { opacity: 0.4; }
-.step-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.step-text strong {
-  font-family: var(--wa-font-sans);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: inherit;
-}
-.step-text span {
-  font-size: 0.75rem;
-  color: inherit;
-  opacity: 0.75;
-  letter-spacing: 0.01em;
-}
+.uc-key { color: var(--wa-text-light); font-size: 0.72rem; }
+.uc-val { color: var(--wa-ocean); font-weight: 600; }
 
-.live-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+.steps { list-style: none; padding: 0; margin: 0 0 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.step {
+  display: flex; gap: 0.85rem; align-items: center; padding: 0.8rem 1rem;
+  background: color-mix(in srgb, var(--wa-sand) 32%, var(--wa-cream));
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 55%, transparent);
+  border-radius: 14px; transition: all 200ms ease;
 }
-.live-card {
-  background: var(--wa-warm);
-  border: 1px solid color-mix(in srgb, var(--wa-sand) 70%, transparent);
-  border-radius: 18px;
-  padding: 1rem 1.125rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  min-height: 120px;
+.step.active { background: var(--wa-ocean); color: var(--wa-cream); border-color: transparent; }
+.step.done { background: color-mix(in srgb, var(--wa-sage) 22%, var(--wa-cream)); border-color: transparent; }
+.step-icon {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, currentColor 14%, transparent);
 }
-.live-card--model {
-  background: linear-gradient(135deg, var(--wa-ocean), var(--wa-dusk));
-  color: var(--wa-cream);
-  border-color: transparent;
+.step.active .step-icon { background: var(--wa-amber); color: var(--wa-ocean); }
+.step.done .step-icon { background: var(--wa-sage); color: #fff; }
+.spin-ring {
+  width: 15px; height: 15px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, currentColor 35%, transparent); border-top-color: currentColor;
+  animation: fspin 0.8s linear infinite;
 }
+@keyframes fspin { to { transform: rotate(360deg); } }
+.idle-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; opacity: 0.35; }
+.step-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.step-text strong { font-size: 0.92rem; font-weight: 600; }
+.step-text span { font-size: 0.76rem; opacity: 0.78; }
 
-.live-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.finder-flight {
+  display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;
+  padding: 0.7rem 1rem; border-radius: 12px;
+  background: color-mix(in srgb, var(--wa-amber) 16%, var(--wa-cream));
+  font-size: 0.88rem; color: var(--wa-text-dark);
 }
-.live-tag {
-  font-family: var(--wa-font-sans);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
-  color: var(--wa-cream);
-}
-.tag-intent { background: var(--wa-sage-dark); }
-.tag-tour   { background: var(--wa-terra); }
-.tag-naver  { background: #3c6b72; }
-.tag-model  { background: var(--wa-amber); color: var(--wa-ocean); }
-.tag-stage  { background: var(--wa-ocean); }
-.tag-plan   { background: var(--wa-sage); }
-.tag-done   { background: var(--wa-sage-dark); }
-.tag-error  { background: #b14a4a; }
+.ff-text strong { color: var(--wa-terra); }
 
-.live-count {
-  font-family: var(--wa-font-sans);
-  font-size: 0.75rem;
-  color: inherit;
-  opacity: 0.8;
+.finder-bar-track {
+  height: 6px; background: color-mix(in srgb, var(--wa-sand) 70%, transparent);
+  border-radius: 999px; overflow: hidden;
 }
-
-.live-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-.intent-row {
-  display: flex;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-}
-.intent-key {
-  min-width: 44px;
-  color: var(--wa-text-light);
-  font-weight: 500;
-}
-.intent-val {
-  color: var(--wa-text-dark);
-  font-weight: 500;
-}
-.intent-val small { color: var(--wa-text-light); font-weight: 400; margin-left: 4px; }
-
-.live-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.live-list li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.35;
-  margin: 0;
-}
-.live-item-title {
-  font-size: 0.8125rem;
-  color: var(--wa-text-dark);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-a.live-item-title { color: var(--wa-dusk); }
-a.live-item-title:hover { color: var(--wa-terra); text-decoration: underline; }
-.live-item-sub {
-  font-size: 0.6875rem;
-  color: var(--wa-text-light);
-}
-.live-empty {
-  font-size: 0.8125rem;
-  color: color-mix(in srgb, currentColor 65%, transparent);
-  font-style: italic;
-  margin: 0;
-}
-
-.model-block { display: flex; flex-direction: column; gap: 4px; }
-.model-name {
-  font-family: var(--wa-font-serif);
-  font-size: 1.25rem;
-  font-style: italic;
-  color: var(--wa-amber);
-}
-.model-caption {
-  font-size: 0.75rem;
-  color: color-mix(in srgb, var(--wa-cream) 75%, transparent);
-  letter-spacing: 0.02em;
-}
-
-.event-log {
-  background: var(--wa-ocean);
-  color: var(--wa-cream);
-  border-radius: 20px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.25rem;
-}
-.event-log-head {
-  font-family: var(--wa-font-sans);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--wa-amber);
-  margin-bottom: 0.75rem;
-}
-.event-log-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 180px;
-  overflow-y: auto;
-}
-.event-log-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  margin: 0;
-  color: color-mix(in srgb, var(--wa-cream) 92%, transparent);
-}
-.event-tag {
-  flex-shrink: 0;
-  font-size: 0.625rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-weight: 600;
-  padding: 0.1875rem 0.5rem;
-  border-radius: 999px;
-  color: var(--wa-cream);
-  background: color-mix(in srgb, var(--wa-cream) 18%, transparent);
-  line-height: 1.4;
-}
-.event-log-empty {
-  font-style: italic;
-  opacity: 0.6;
-  font-size: 0.8125rem;
-  margin: 0;
-}
-
-.progress-bar-container {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-.progress-bar {
-  flex: 1;
-  height: 6px;
-  background: color-mix(in srgb, var(--wa-sand) 75%, transparent);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--wa-sage) 0%, var(--wa-terra) 100%);
-  border-radius: inherit;
+.finder-bar-fill {
+  height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, var(--wa-sage), var(--wa-terra));
   transition: width 400ms ease;
 }
-.progress-text {
-  font-family: var(--wa-font-sans);
-  font-size: 0.75rem;
-  color: var(--wa-text-mid);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
+</style>
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.45; transform: scale(0.7); }
+<style scoped>
+.finder-collected { margin-bottom: 1rem; }
+.fc-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--wa-text-light, #999); }
+.fc-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.fc-item {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  background: color-mix(in srgb, var(--wa-sand) 26%, var(--wa-cream));
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 50%, transparent);
+  border-radius: 999px; padding: 0.28rem 0.7rem; font-size: 0.8rem; color: var(--wa-text-dark, #333);
+  animation: fc-in 240ms ease;
 }
-
-@media (max-width: 720px) {
-  .progress-container { padding: 1.25rem; border-radius: 20px; }
-  .step-list { grid-template-columns: 1fr; }
-}
+@keyframes fc-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.fc-ic { font-size: 0.85rem; }
 </style>

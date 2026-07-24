@@ -21,8 +21,53 @@ export interface IntentPayload {
   intent?: string;
   keyword?: string | null;
   area?: { name?: string; code?: string; sigungu?: { name?: string; code?: string } } | null;
+  international?: boolean;
+  destination?: string;
+  days?: number;
+  origin?: string;
+  departDate?: string;
+  returnDate?: string;
+  style?: string;
+  budgetLevel?: string;
+  companions?: string;
   confidence?: number;
   reason?: string;
+}
+
+export interface Accommodation {
+  name?: string;
+  area?: string;
+  type?: string;
+  pricePerNightKrw?: number;
+  bookingUrl?: string;
+}
+
+export interface Meal {
+  type?: string;
+  name?: string;
+  location?: string;
+  menu?: string;
+  priceKrw?: number;
+}
+
+export interface CostItem {
+  label?: string;
+  krw?: number;
+}
+
+export interface FlightOffer {
+  origin?: string;
+  destination?: string;
+  airline?: string;
+  flightNumber?: number;
+  transfers?: number;
+  price?: number;
+  currency?: string;
+  departureAt?: string;
+  returnAt?: string;
+  legMinutes?: number;
+  roundTrip?: boolean;
+  bookingUrl?: string;
 }
 
 export interface TravelPlan {
@@ -35,7 +80,9 @@ export interface TravelPlan {
   budget?: string;
   estimatedBudgetKrw?: number;
   transportation?: string;
-  accommodation?: string;
+  accommodation?: Accommodation;
+  international?: boolean;
+  flights?: FlightOffer[];
   itinerary?: Array<{
     day?: number;
     title?: string;
@@ -52,12 +99,25 @@ export interface TravelPlan {
     }>;
     activities?: string[];
     transportation?: string;
-    meals?: string;
+    meals?: Meal[];
+    accommodation?: string;
+    weather?: string;
     estimatedCost?: string;
+    costItems?: CostItem[];
     tips?: string;
   }>;
   tips?: string[];
   weatherInfo?: string;
+  localInfo?: string;
+  packingList?: string[];
+  costBreakdown?: {
+    flightsKrw?: number;
+    accommodationKrw?: number;
+    foodKrw?: number;
+    transportKrw?: number;
+    activitiesKrw?: number;
+    etcKrw?: number;
+  };
   warnings?: string[];
 }
 
@@ -72,7 +132,7 @@ export interface StreamProgress {
   stage: TravelStage;
   messages: ProgressMessage[];
   intent: IntentPayload | null;
-  sources: { tour: SourceSummary | null; naver: SourceSummary | null };
+  sources: { tour: SourceSummary | null; naver: SourceSummary | null; web: SourceSummary | null };
   model: string | null;
 }
 
@@ -80,6 +140,9 @@ export interface StreamState {
   isStreaming: boolean;
   currentData: string;        // 누적 토큰 (AI 원문 텍스트)
   plan: TravelPlan | null;    // 구조화 파싱 성공 시
+  partialPlan: Partial<TravelPlan> | null; // 생성 중 부분 파싱 결과 (실시간 미리보기)
+  flights: FlightOffer[];     // sources.flight 이벤트로 수신한 항공권 (plan 실패해도 표시)
+  hotels: Accommodation[];    // sources.hotel 이벤트로 수신한 숙소
   isComplete: boolean;
   error: string | null;
   abortController: AbortController | null;
@@ -90,7 +153,7 @@ const createInitialProgress = (): StreamProgress => ({
   stage: 'idle',
   messages: [],
   intent: null,
-  sources: { tour: null, naver: null },
+  sources: { tour: null, naver: null, web: null },
   model: null,
 });
 
@@ -102,11 +165,125 @@ const STAGE_LABEL: Record<string, TravelStage> = {
   error: 'error',
 };
 
+/** 스트리밍 중 완성된 최상위 {…} 객체들을 추출 (문자열/이스케이프 인식). ] 만나면 종료. */
+function extractObjects(s: string): Array<Record<string, unknown>> {
+  const objs: Array<Record<string, unknown>> = [];
+  let depth = 0, inStr = false, esc = false, startI = -1;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{') { if (depth === 0) startI = i; depth++; }
+    else if (c === '}') {
+      depth--;
+      if (depth === 0 && startI >= 0) {
+        try { objs.push(JSON.parse(s.slice(startI, i + 1))); } catch { /* 미완성 스킵 */ }
+        startI = -1;
+      }
+    } else if (c === ']' && depth === 0) break;
+  }
+  return objs;
+}
+
+/** 완성된 날짜들 + 현재 작성 중인(미완성) 날짜의 부분 내용을 함께 추출. */
+function extractItineraryDays(arrStr: string): Array<Record<string, unknown>> {
+  const days: Array<Record<string, unknown>> = [];
+  let depth = 0, inStr = false, esc = false, startI = -1, lastEnd = 0, closed = false;
+  for (let i = 0; i < arrStr.length; i++) {
+    const c = arrStr[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{') { if (depth === 0) startI = i; depth++; }
+    else if (c === '}') {
+      depth--;
+      if (depth === 0 && startI >= 0) {
+        try { days.push(JSON.parse(arrStr.slice(startI, i + 1))); } catch { /* skip */ }
+        lastEnd = i + 1; startI = -1;
+      }
+    } else if (c === ']' && depth === 0) { closed = true; break; }
+  }
+  // 배열이 아직 안 닫혔으면 = 마지막에 작성 중인 날짜가 있음 → title/spots 부분 추출.
+  if (!closed) {
+    const tail = arrStr.slice(lastEnd);
+    const open = parseOpenDay(tail);
+    if (open) days.push(open);
+  }
+  return days;
+}
+
+/** 작성 중인 날짜 조각에서 day/title/완성된 spot 들을 추출. */
+function parseOpenDay(tail: string): Record<string, unknown> | null {
+  const br = tail.indexOf('{');
+  if (br < 0) return null;
+  const s = tail.slice(br);
+  const day: Record<string, unknown> = {};
+  const titleM = s.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (titleM) day.title = titleM[1];
+  const dayM = s.match(/"day"\s*:\s*(\d+)/);
+  if (dayM) day.day = parseInt(dayM[1], 10);
+  const spIdx = s.search(/"spots"\s*:\s*\[/);
+  if (spIdx >= 0) {
+    const spStart = s.indexOf('[', spIdx);
+    const spots = extractObjects(s.slice(spStart + 1));
+    if (spots.length) day.spots = spots;
+  }
+  return (day.title || day.spots) ? day : null;
+}
+
+/** 스트리밍 중인 JSON 문자열에서 계획 일부(목적지/일수/완성된 날짜)를 best-effort 추출. */
+function extractPartialPlan(raw: string): Partial<TravelPlan> | null {
+  if (!raw) return null;
+  let t = raw.trim();
+  if (t.startsWith('```')) { const nl = t.indexOf('\n'); if (nl >= 0) t = t.slice(nl + 1); }
+  const start = t.indexOf('{');
+  if (start < 0) return null;
+  t = t.slice(start);
+  const out: Partial<TravelPlan> = {};
+  const str = (k: string): string | undefined => {
+    const m = t.match(new RegExp('"' + k + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"'));
+    return m ? m[1] : undefined;
+  };
+  const num = (k: string): number | undefined => {
+    const m = t.match(new RegExp('"' + k + '"\\s*:\\s*(\\d+)'));
+    return m ? parseInt(m[1], 10) : undefined;
+  };
+  out.destination = str('destination');
+  out.duration = str('duration');
+  out.summary = str('summary');
+  out.theme = str('theme');
+  out.budget = str('budget');
+  out.weatherInfo = str('weatherInfo');
+  out.localInfo = str('localInfo');
+  const d = num('days'); if (d) out.days = d;
+  const eb = num('estimatedBudgetKrw'); if (eb) out.estimatedBudgetKrw = eb;
+  const itIdx = t.search(/"itinerary"\s*:\s*\[/);
+  if (itIdx >= 0) {
+    const arrStart = t.indexOf('[', itIdx);
+    const days = extractItineraryDays(t.slice(arrStart + 1)) as TravelPlan['itinerary'];
+    if (days && days.length) out.itinerary = days;
+  }
+  if (!out.destination && !out.itinerary) return null;
+  return out;
+}
+
 export const useStreamStore = defineStore('stream', () => {
   const state = reactive<StreamState>({
     isStreaming: false,
     currentData: '',
     plan: null,
+    partialPlan: null,
+    flights: [],
+    hotels: [],
     isComplete: false,
     error: null,
     abortController: null,
@@ -117,6 +294,9 @@ export const useStreamStore = defineStore('stream', () => {
     state.progress = createInitialProgress();
     state.currentData = '';
     state.plan = null;
+    state.partialPlan = null;
+    state.flights = [];
+    state.hotels = [];
     state.isComplete = false;
     state.error = null;
   };
@@ -154,6 +334,23 @@ export const useStreamStore = defineStore('stream', () => {
         pushMessage('sources.naver', event.message, event.stage);
         break;
       }
+      case 'sources.flight': {
+        const offers = event.payload as FlightOffer[] | undefined;
+        if (Array.isArray(offers)) state.flights = offers;
+        pushMessage('sources.flight', event.message, event.stage);
+        break;
+      }
+      case 'sources.web': {
+        state.progress.sources.web = (event.payload as SourceSummary) ?? null;
+        pushMessage('sources.web', event.message, event.stage);
+        break;
+      }
+      case 'sources.hotel': {
+        const list = event.payload as Accommodation[] | undefined;
+        if (Array.isArray(list)) state.hotels = list;
+        pushMessage('sources.hotel', event.message, event.stage);
+        break;
+      }
       case 'model': {
         const p = event.payload as { model?: string } | string | undefined;
         const model = typeof p === 'string' ? p : p?.model ?? null;
@@ -161,18 +358,33 @@ export const useStreamStore = defineStore('stream', () => {
         pushMessage('model', event.message, event.stage);
         break;
       }
+      case 'partial': {
+        // 권역 분할 생성: 완성된 권역까지의 계획을 실시간 미리보기로.
+        const p = event.payload as TravelPlan | undefined;
+        if (p && typeof p === 'object') state.partialPlan = p;
+        pushMessage('partial', event.message, event.stage);
+        break;
+      }
       case 'token': {
         const payload = event.payload;
         if (typeof payload === 'string') {
           state.currentData += payload;
+          // 실시간 부분 파싱: 완성된 날짜 카드가 생기는 대로 미리보기 갱신.
+          const partial = extractPartialPlan(state.currentData);
+          if (partial) state.partialPlan = partial;
         }
         break;
       }
       case 'plan': {
         const payload = event.payload as TravelPlan | { fallback?: boolean; text?: string } | undefined;
         if (payload && 'fallback' in payload && payload.fallback) {
-          // 텍스트 폴백이면 currentData 만 유지
-          if (payload.text && !state.currentData) state.currentData = payload.text;
+          // 구조화(전체) 파싱이 실패해도, 실시간 부분 파싱으로 완성된 날짜가 있으면 그것을 결과로 승격.
+          // (생성이 중간에 잘려도 완성된 일자까지는 온전히 보여주기)
+          if (state.partialPlan && state.partialPlan.itinerary && state.partialPlan.itinerary.length) {
+            state.plan = state.partialPlan as TravelPlan;
+          } else if (payload.text && !state.currentData) {
+            state.currentData = payload.text;
+          }
         } else if (payload) {
           state.plan = payload as TravelPlan;
         }
@@ -284,6 +496,17 @@ export const useStreamStore = defineStore('stream', () => {
     resetProgress();
   };
 
+  // 저장된 계획을 결과 화면에 그대로 표시.
+  const loadSaved = (plan: TravelPlan, flights: FlightOffer[]) => {
+    stopStream();
+    resetProgress();
+    state.plan = plan;
+    state.flights = flights || [];
+    state.isComplete = true;
+    state.isStreaming = false;
+    state.progress.stage = 'completed';
+  };
+
   const setData = (data: string) => {
     state.currentData = cleanDataPrefix(data);
     state.isStreaming = false;
@@ -362,6 +585,7 @@ export const useStreamStore = defineStore('stream', () => {
     startChatStream,
     stopStream,
     clearStream,
+    loadSaved,
     formatMarkdown,
     setData,
     setError,

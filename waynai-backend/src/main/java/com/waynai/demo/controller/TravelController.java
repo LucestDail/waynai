@@ -53,10 +53,15 @@ public class TravelController {
      *   data:  &lt;JSON&gt;         (TravelEvent payload 포함)
      */
     @GetMapping(value = "/plan/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<TravelEvent>> generateTravelPlanStream(@RequestParam String query) {
-        log.info("[sse] 여행 계획 스트림 요청: {}", query);
+    public Flux<ServerSentEvent<TravelEvent>> generateTravelPlanStream(
+            @RequestParam String query,
+            @RequestParam(required = false) String origin,
+            @RequestParam(required = false) String departDate,
+            @RequestParam(required = false) String returnDate) {
+        log.info("[sse] 여행 계획 스트림 요청: {} (origin={}, depart={}, return={})",
+                query, origin, departDate, returnDate);
         AtomicLong seq = new AtomicLong(0);
-        return travelOrchestratorService.generatePlanStream(query)
+        return travelOrchestratorService.generatePlanStream(query, origin, departDate, returnDate)
                 .map(evt -> ServerSentEvent.<TravelEvent>builder()
                         .id(String.valueOf(seq.incrementAndGet()))
                         .event(evt.getType() != null ? evt.getType() : "message")
@@ -64,6 +69,41 @@ public class TravelController {
                         .build())
                 .doOnComplete(() -> log.info("[sse] 여행 계획 스트림 완료: {}", query))
                 .doOnError(err -> log.error("[sse] 여행 계획 스트림 오류: {}", err.getMessage()));
+    }
+
+    /**
+     * 타입드 SSE 스트림 (POST). 긴 자연어 질의를 바디로 받아 GET URL 길이 제한(414/헤더 초과)을 회피한다.
+     */
+    @PostMapping(value = "/plan/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<TravelEvent>> generateTravelPlanStreamPost(@RequestBody StreamRequest req) {
+        String query = req.getQuery() != null ? req.getQuery() : "";
+        log.info("[sse] 여행 계획 스트림 요청(POST): len={} (origin={}, depart={}, return={})",
+                query.length(), req.getOrigin(), req.getDepartDate(), req.getReturnDate());
+        AtomicLong seq = new AtomicLong(0);
+        return travelOrchestratorService.generatePlanStream(query, req.getOrigin(), req.getDepartDate(), req.getReturnDate())
+                .map(evt -> ServerSentEvent.<TravelEvent>builder()
+                        .id(String.valueOf(seq.incrementAndGet()))
+                        .event(evt.getType() != null ? evt.getType() : "message")
+                        .data(evt)
+                        .build())
+                .doOnComplete(() -> log.info("[sse] 여행 계획 스트림 완료(POST)"))
+                .doOnError(err -> log.error("[sse] 여행 계획 스트림 오류(POST): {}", err.getMessage()));
+    }
+
+    /** 스트림 POST 요청 바디. */
+    public static class StreamRequest {
+        private String query;
+        private String origin;
+        private String departDate;
+        private String returnDate;
+        public String getQuery() { return query; }
+        public void setQuery(String query) { this.query = query; }
+        public String getOrigin() { return origin; }
+        public void setOrigin(String origin) { this.origin = origin; }
+        public String getDepartDate() { return departDate; }
+        public void setDepartDate(String departDate) { this.departDate = departDate; }
+        public String getReturnDate() { return returnDate; }
+        public void setReturnDate(String returnDate) { this.returnDate = returnDate; }
     }
 
     /**

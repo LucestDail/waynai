@@ -28,13 +28,13 @@ fallback_from_file() {
     fi
 }
 
-fallback_from_file GEMINI_API_KEY       /var/www/key/key
+fallback_from_file OPENROUTER_API_KEY   /var/www/key/key
 fallback_from_file NAVER_CLIENT_ID      /var/www/key/naverId
 fallback_from_file NAVER_CLIENT_SECRET  /var/www/key/naverSecret
 fallback_from_file TOUR_API_SERVICE_KEY /var/www/key/tourApiKey
 
-if [ -z "${GEMINI_API_KEY:-}" ]; then
-    echo "[ERROR] GEMINI_API_KEY 가 설정되지 않았습니다."
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+    echo "[ERROR] OPENROUTER_API_KEY 가 설정되지 않았습니다."
     exit 1
 fi
 

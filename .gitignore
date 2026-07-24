@@ -21,3 +21,4 @@ logs/
 # Python (legacy references)
 __pycache__/
 *.pyc
+waynai-backend/data/

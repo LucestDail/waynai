@@ -19,8 +19,8 @@ else
     echo "[WARN] .env 파일이 없습니다. .env.example 을 복사하여 생성하세요."
 fi
 
-if [ -z "${GEMINI_API_KEY:-}" ]; then
-    echo "[ERROR] GEMINI_API_KEY 가 설정되지 않았습니다. (.env 확인)"
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+    echo "[ERROR] OPENROUTER_API_KEY 가 설정되지 않았습니다. (.env 확인)"
     exit 1
 fi
 if [ -z "${NAVER_CLIENT_ID:-}" ] || [ -z "${NAVER_CLIENT_SECRET:-}" ]; then

@@ -41,16 +41,19 @@ export class StreamService {
   ): Promise<AbortController> {
     const controller = new AbortController();
 
-    const url = `${this.API_BASE_URL}/api/travel/plan/stream?query=${encodeURIComponent(query)}`;
+    // POST + JSON 바디: 긴 자연어 질의도 URL 길이 제한(414/헤더 초과) 없이 전송.
+    const url = `${this.API_BASE_URL}/api/travel/plan/stream`;
 
     (async () => {
       try {
         const response = await fetch(url, {
-          method: 'GET',
+          method: 'POST',
           headers: {
             Accept: 'text/event-stream',
             'Cache-Control': 'no-cache',
+            'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ query }),
           signal: controller.signal,
         });
 

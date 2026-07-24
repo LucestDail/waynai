@@ -46,7 +46,7 @@ public class IntentAnalysisService {
             // 프롬프트에 쿼리와 지역 데이터 치환
             String fullPrompt = prompt.replace("$query", query).replace("$areaData", areaData);
             
-            return geminiApiClient.generateText(fullPrompt)
+            return geminiApiClient.generateJson(fullPrompt)
                     .map(response -> {
                         try {
                             // API 오류 응답인지 확인
@@ -67,7 +67,10 @@ public class IntentAnalysisService {
                             } else if (cleanResponse.startsWith("```")) {
                                 cleanResponse = cleanResponse.replaceAll("^```\\n", "").replaceAll("\\n```$", "");
                             }
-                            
+                            // LLM 이 객체/배열 필드에 문자열 "null" 을 넣는 경우(예: "area":"null") →
+                            // JSON null 로 정화해 파싱 실패로 전체 intent(segments·days 포함)가 날아가지 않게 한다.
+                            cleanResponse = cleanResponse.replaceAll(":\\s*\"null\"", ": null");
+
                             IntentAnalysisDto result = objectMapper.readValue(cleanResponse, IntentAnalysisDto.class);
                             log.info("의도 분석 완료: {}", result);
                             return result;

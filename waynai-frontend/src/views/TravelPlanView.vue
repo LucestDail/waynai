@@ -1,122 +1,44 @@
 <template>
   <div class="travel-plan-view">
     <section class="intro">
-      <span class="eyebrow">wayn · Plan Studio</span>
+      <span class="eyebrow">세부 계획</span>
       <h1 class="title">
-        구체적으로 설계하는 <em>맞춤 여행</em>
+        원하는 여행을 <em>편하게 말해주세요</em>
       </h1>
       <p class="subtitle">
-        목적지, 일정, 테마, 예산을 알려주시면 관광공사·네이버 RAG와 Gemini 3 핫스왑이
-        실시간으로 계획을 생성합니다.
+        목적지·일정·동행·예산을 한 번에 문장으로 적어주세요. 나머지는 알아서 이해하고
+        항공권·동선·비용까지 맞춰 드립니다.
       </p>
     </section>
 
     <section class="plan-card">
       <form class="plan-form" @submit.prevent="generateTravelPlan">
-        <div class="form-section">
-          <div class="section-head">
-            <span class="section-bar"></span>
-            <h3>목적지 정보</h3>
-          </div>
-          <div class="form-row">
-            <label class="form-group">
-              <span>지역</span>
-              <select v-model="selectedArea" @change="updateSigunguOptions" class="form-select">
-                <option value="">지역을 선택하세요</option>
-                <option v-for="a in areaList" :key="a.value" :value="a.value">{{ a.label }}</option>
-              </select>
-            </label>
-            <label class="form-group">
-              <span>시군구</span>
-              <select v-model="selectedSigungu" class="form-select" :disabled="!sigunguOptions.length">
-                <option value="">시군구를 선택하세요</option>
-                <option v-for="sigungu in sigunguOptions" :key="sigungu" :value="sigungu">
-                  {{ sigungu }}
-                </option>
-              </select>
-            </label>
-          </div>
-        </div>
+        <label class="nl-label" for="nl-input">어떤 여행을 원하세요?</label>
+        <textarea
+          id="nl-input"
+          v-model="planText"
+          class="nl-input"
+          rows="4"
+          placeholder="예) 오사카로 3박 4일 커플 여행 가고 싶어요. 맛집이랑 쇼핑 위주로, 예산은 넉넉하게. 9월 출발 예정이에요."
+          :disabled="streamState.isStreaming"
+        ></textarea>
 
-        <div class="form-section">
-          <div class="section-head">
-            <span class="section-bar"></span>
-            <h3>여행 정보</h3>
-          </div>
-          <div class="form-row">
-            <label class="form-group">
-              <span>여행 일정</span>
-              <select v-model="selectedDuration" class="form-select">
-                <option value="">일정을 선택하세요</option>
-                <option value="1">당일치기</option>
-                <option value="2">1박 2일</option>
-                <option value="3">2박 3일</option>
-                <option value="4">3박 4일</option>
-              </select>
-            </label>
-            <label class="form-group">
-              <span>여행 테마</span>
-              <select v-model="selectedTheme" class="form-select">
-                <option value="">테마를 선택하세요</option>
-                <option value="문화">문화 / 역사</option>
-                <option value="자연">자연 / 풍경</option>
-                <option value="음식">음식 / 맛집</option>
-                <option value="쇼핑">쇼핑 / 시장</option>
-                <option value="레저">레저 / 액티비티</option>
-                <option value="힐링">힐링 / 휴식</option>
-              </select>
-            </label>
-          </div>
-          <div class="form-row form-row--single">
-            <div class="form-group">
-              <span>이동 수단</span>
-              <div class="chip-group">
-                <label v-for="opt in transportationOptions" :key="opt" class="chip-option">
-                  <input type="checkbox" v-model="transportation" :value="opt" />
-                  <span>{{ opt }}</span>
-                </label>
+        <div class="quick-add">
+          <span class="qa-label">빠른 추가</span>
+          <div class="qa-groups">
+            <div v-for="group in quickGroups" :key="group.title" class="qa-group">
+              <span class="qa-group-title">{{ group.title }}</span>
+              <div class="qa-chips">
+                <button
+                  v-for="chip in group.chips"
+                  :key="chip"
+                  type="button"
+                  class="qa-chip"
+                  :disabled="streamState.isStreaming"
+                  @click="appendChip(chip)"
+                >{{ chip }}</button>
               </div>
             </div>
-          </div>
-          <div class="form-row form-row--single">
-            <label class="form-group">
-              <span>키워드</span>
-              <input
-                v-model="keywords"
-                type="text"
-                class="form-input"
-                placeholder="예: 야경, 해산물, 카페, 벚꽃"
-              />
-            </label>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="section-head">
-            <span class="section-bar"></span>
-            <h3>추가 정보</h3>
-          </div>
-          <div class="form-row">
-            <label class="form-group">
-              <span>예산</span>
-              <select v-model="selectedBudget" class="form-select">
-                <option value="">예산을 선택하세요</option>
-                <option value="저렴">저렴 (10만원 이하)</option>
-                <option value="보통">보통 (10-30만원)</option>
-                <option value="고급">고급 (30만원 이상)</option>
-              </select>
-            </label>
-            <label class="form-group">
-              <span>동반자</span>
-              <select v-model="selectedCompanion" class="form-select">
-                <option value="">동반자를 선택하세요</option>
-                <option value="혼자">혼자</option>
-                <option value="커플">커플</option>
-                <option value="가족">가족</option>
-                <option value="친구">친구</option>
-                <option value="단체">단체</option>
-              </select>
-            </label>
           </div>
         </div>
 
@@ -127,11 +49,21 @@
             :disabled="!isFormValid || streamState.isStreaming"
           >
             <span v-if="streamState.isStreaming" class="spinner"></span>
-            <span v-else>여행 계획 생성하기</span>
+            <span v-else>여행 계획 만들기</span>
           </button>
-          <p class="hint">필수: 지역 · 시군구 · 일정 · 테마</p>
+          <p class="hint">문장 한 줄이면 충분해요. 자세히 적을수록 더 정확해집니다.</p>
         </div>
       </form>
+    </section>
+
+    <section v-if="historyItems.length" class="saved-strip">
+      <h3 class="saved-title">저장한 여행</h3>
+      <div class="saved-list">
+        <div v-for="item in historyItems" :key="item.id" class="saved-item">
+          <button class="saved-load" @click="openSaved(item)">{{ item.title }}</button>
+          <button class="saved-del" @click="removeSaved(item.id)" aria-label="삭제">✕</button>
+        </div>
+      </div>
     </section>
 
     <section v-if="shouldShowProgress" class="progress-wrap">
@@ -148,74 +80,45 @@
 import SearchProgress from '@/components/SearchProgress.vue';
 import StreamResult from '@/components/StreamResult.vue';
 import { useStreamStore } from '@/stores/stream';
-import { computed, onUnmounted, ref } from 'vue';
+import { useHistoryStore, type SavedPlan } from '@/stores/history';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const streamStore = useStreamStore();
 const streamState = streamStore.state;
 
-const selectedArea = ref('');
-const selectedSigungu = ref('');
-const selectedDuration = ref('');
-const selectedTheme = ref('');
-const selectedBudget = ref('');
-const selectedCompanion = ref('');
-const transportation = ref<string[]>([]);
-const keywords = ref('');
+const historyStore = useHistoryStore();
+const historyItems = computed(() => historyStore.items);
+// 진입 시 서버 저장소와 동기화(다른 기기에서 저장한 계획도 표시).
+onMounted(() => historyStore.refresh());
+const openSaved = async (item: SavedPlan) => {
+  // 요약만 있는 항목(다른 기기 저장분)은 서버에서 상세를 로드.
+  const full = await historyStore.load(item.id);
+  const src = full ?? item;
+  streamStore.loadSaved(src.plan, src.flights);
+  setTimeout(() => {
+    document.querySelector('.result-wrap')?.scrollIntoView({ behavior: 'smooth' });
+  }, 60);
+};
+const removeSaved = (id: string) => historyStore.remove(id);
 
-const transportationOptions = ['기차', '자동차', '도보', '전철', '버스', '택시'];
+// 자연어 입력 하나로 통일. 콤보/시군구 코드 제거 → 서버(LLM)가 문장에서 조건을 판단.
+const planText = ref('');
 
-const areaList = [
-  { value: '서울', label: '서울' },
-  { value: '부산', label: '부산' },
-  { value: '대구', label: '대구' },
-  { value: '인천', label: '인천' },
-  { value: '광주', label: '광주' },
-  { value: '대전', label: '대전' },
-  { value: '울산', label: '울산' },
-  { value: '세종', label: '세종' },
-  { value: '경기', label: '경기도' },
-  { value: '강원', label: '강원도' },
-  { value: '충북', label: '충청북도' },
-  { value: '충남', label: '충청남도' },
-  { value: '전북', label: '전라북도' },
-  { value: '전남', label: '전라남도' },
-  { value: '경북', label: '경상북도' },
-  { value: '경남', label: '경상남도' },
-  { value: '제주', label: '제주도' },
+// 선택형 빠른 추가 — 클릭하면 문장에 자연스럽게 덧붙는다.
+const quickGroups = [
+  { title: '기간', chips: ['당일치기', '1박 2일', '2박 3일', '3박 4일', '일주일'] },
+  { title: '동행', chips: ['혼자', '커플', '가족', '친구', '부모님과'] },
+  { title: '스타일', chips: ['맛집 위주', '힐링', '배낭여행', '신혼여행', '도보 여행', '쇼핑'] },
+  { title: '예산', chips: ['가성비', '보통', '넉넉하게'] },
 ];
 
-const sigunguOptions = ref<string[]>([]);
-
-const sigunguData: Record<string, string[]> = {
-  '서울': ['종로구', '중구', '용산구', '성동구', '광진구', '동대문구', '중랑구', '성북구', '강북구', '도봉구', '노원구', '은평구', '서대문구', '마포구', '양천구', '강서구', '구로구', '금천구', '영등포구', '동작구', '관악구', '서초구', '강남구', '송파구', '강동구'],
-  '부산': ['부산중구', '부산서구', '부산동구', '영도구', '부산진구', '동래구', '부산남구', '부산북구', '해운대구', '사하구', '금정구', '부산강서구', '연제구', '수영구', '사상구', '기장군'],
-  '대구': ['대구중구', '대구동구', '대구서구', '대구남구', '대구북구', '수성구', '달서구', '달성군', '군위군'],
-  '인천': ['인천중구', '인천동구', '미추홀구', '연수구', '인천남동구', '부평구', '계양구', '인천서구', '강화군', '옹진군'],
-  '광주': ['광주동구', '광주서구', '광주남구', '광주북구', '광산구'],
-  '대전': ['대전동구', '대전중구', '대전서구', '유성구', '대덕구'],
-  '울산': ['울산중구', '울산남구', '울산동구', '울산북구', '울주군'],
-  '세종': ['세종특별자치시'],
-  '경기': ['수원시', '성남시', '의정부시', '안양시', '부천시', '광명시', '평택시', '동두천시', '안산시', '고양시', '과천시', '구리시', '남양주시', '오산시', '시흥시', '군포시', '의왕시', '하남시', '용인시', '파주시', '이천시', '안성시', '김포시', '화성시', '광주시', '양주시', '포천시', '여주시', '연천군', '가평군', '양평군'],
-  '강원': ['춘천시', '원주시', '강릉시', '동해시', '태백시', '속초시', '삼척시', '홍천군', '횡성군', '영월군', '평창군', '정선군', '철원군', '화천군', '양구군', '인제군', '고성군', '양양군'],
-  '충북': ['청주시', '충주시', '제천시', '보은군', '옥천군', '영동군', '증평군', '진천군', '괴산군', '음성군', '단양군'],
-  '충남': ['천안시', '공주시', '보령시', '아산시', '서산시', '논산시', '계룡시', '당진시', '금산군', '부여군', '서천군', '청양군', '홍성군', '예산군', '태안군'],
-  '전북': ['전주시', '군산시', '익산시', '정읍시', '남원시', '김제시', '완주군', '진안군', '무주군', '장수군', '임실군', '순창군', '고창군', '부안군'],
-  '전남': ['목포시', '여수시', '순천시', '나주시', '광양시', '담양군', '곡성군', '구례군', '고흥군', '보성군', '화순군', '장흥군', '강진군', '해남군', '영암군', '무안군', '함평군', '영광군', '장성군', '완도군', '진도군', '신안군'],
-  '경북': ['포항시', '경주시', '김천시', '안동시', '구미시', '영주시', '영천시', '상주시', '문경시', '경산시', '군위군', '의성군', '청송군', '영양군', '영덕군', '청도군', '고령군', '성주군', '칠곡군', '예천군', '봉화군', '울진군', '울릉군'],
-  '경남': ['창원시', '진주시', '통영시', '사천시', '김해시', '밀양시', '거제시', '양산시', '의령군', '함안군', '창녕군', '고성군', '남해군', '하동군', '산청군', '함양군', '거창군', '합천군'],
-  '제주': ['제주시', '서귀포시'],
+const appendChip = (chip: string) => {
+  const cur = planText.value.trim();
+  if (cur.includes(chip)) return;
+  planText.value = cur ? `${cur} ${chip}` : chip;
 };
 
-const updateSigunguOptions = () => {
-  sigunguOptions.value = selectedArea.value && sigunguData[selectedArea.value]
-    ? sigunguData[selectedArea.value]
-    : [];
-  selectedSigungu.value = '';
-};
-
-const isFormValid = computed(() =>
-  !!(selectedArea.value && selectedSigungu.value && selectedDuration.value && selectedTheme.value)
-);
+const isFormValid = computed(() => planText.value.trim().length > 0);
 
 const shouldShowProgress = computed(() =>
   streamState.isStreaming ||
@@ -223,38 +126,14 @@ const shouldShowProgress = computed(() =>
   streamState.progress.stage !== 'idle'
 );
 
-const shouldShowResult = computed(() => {
-  const hasData = !!streamState.plan ||
-    (streamState.currentData && streamState.currentData.trim().length > 0);
-  return hasData || !!streamState.error;
-});
-
-const durationLabel: Record<string, string> = {
-  '1': '당일치기',
-  '2': '1박 2일',
-  '3': '2박 3일',
-  '4': '3박 4일',
-};
-
-const buildQuery = () => {
-  const parts = [
-    selectedArea.value,
-    selectedSigungu.value,
-    durationLabel[selectedDuration.value] ?? '',
-    selectedTheme.value,
-    selectedBudget.value ? `${selectedBudget.value} 예산` : '',
-    selectedCompanion.value ? `${selectedCompanion.value} 동반` : '',
-    transportation.value.length ? transportation.value.join('·') : '',
-    keywords.value,
-  ];
-  return parts.filter(Boolean).join(' ').trim();
-};
+const shouldShowResult = computed(() =>
+  !!streamState.plan || !!streamState.error || streamState.isStreaming ||
+  (!!streamState.currentData && streamState.currentData.trim().length > 0)
+);
 
 const generateTravelPlan = async () => {
   if (!isFormValid.value || streamState.isStreaming) return;
-  const q = buildQuery();
-  if (!q) return;
-  await streamStore.startTravelPlanStream(q);
+  await streamStore.startTravelPlanStream(planText.value.trim());
   setTimeout(() => {
     document.querySelector('.progress-wrap')?.scrollIntoView({ behavior: 'smooth' });
   }, 120);
@@ -356,6 +235,7 @@ onUnmounted(() => streamStore.stopStream());
 .form-row:last-child { margin-bottom: 0; }
 
 .form-group { display: flex; flex-direction: column; gap: 0.375rem; }
+.form-group-wide { grid-column: 1 / -1; }
 .form-group > span {
   font-family: var(--wa-font-sans);
   font-size: 0.75rem;
@@ -460,4 +340,82 @@ onUnmounted(() => streamStore.stopStream());
   .plan-card { padding: 1.25rem; border-radius: 22px; }
   .form-section { padding: 1.25rem; }
 }
+</style>
+
+<style scoped>
+/* --- 자연어 입력 폼 (2026-07 재구성) --- */
+.nl-label {
+  display: block;
+  font-family: var(--wa-font-serif);
+  font-size: 1.15rem;
+  color: var(--wa-ocean);
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+.nl-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 120px;
+  padding: 1rem 1.15rem;
+  font-family: var(--wa-font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--wa-text-dark);
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 70%, transparent);
+  border-radius: 16px;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.nl-input:focus {
+  border-color: var(--wa-ocean);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wa-ocean) 14%, transparent);
+}
+.nl-input:disabled { opacity: 0.6; }
+
+.quick-add { margin-top: 1.25rem; }
+.qa-label {
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--wa-text-light); font-weight: 600;
+}
+.qa-groups { display: flex; flex-direction: column; gap: 0.65rem; margin-top: 0.65rem; }
+.qa-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.qa-group-title { font-size: 0.78rem; color: var(--wa-text-mid); min-width: 44px; }
+.qa-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.qa-chip {
+  background: color-mix(in srgb, var(--wa-sand) 30%, var(--wa-cream));
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 60%, transparent);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.82rem;
+  color: var(--wa-text-dark);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+.qa-chip:hover:not(:disabled) { background: var(--wa-ocean); color: var(--wa-cream); border-color: var(--wa-ocean); }
+.qa-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+</style>
+
+<style scoped>
+/* --- 저장한 여행 --- */
+.saved-strip { max-width: 960px; margin: 1.5rem auto 0; }
+.saved-title { font-size: 0.9rem; font-weight: 700; color: var(--wa-ocean); margin: 0 0 0.6rem; }
+.saved-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.saved-item {
+  display: inline-flex; align-items: center;
+  background: var(--wa-cream);
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 60%, transparent);
+  border-radius: 999px; overflow: hidden;
+}
+.saved-load {
+  background: transparent; border: none; cursor: pointer;
+  padding: 0.4rem 0.5rem 0.4rem 0.9rem; font-size: 0.85rem; color: var(--wa-text-dark);
+}
+.saved-load:hover { color: var(--wa-terra); }
+.saved-del {
+  background: transparent; border: none; cursor: pointer;
+  padding: 0.4rem 0.7rem 0.4rem 0.4rem; font-size: 0.75rem; color: var(--wa-text-light);
+}
+.saved-del:hover { color: #b14a4a; }
 </style>

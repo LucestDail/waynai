@@ -42,7 +42,10 @@ public class PromptLoader {
 
             // 구조화 JSON 여행 계획 프롬프트 로드
             loadPrompt("travel_plan_structured", "prompt/travel_plan_structured.txt");
-            
+
+            // 권역별(구간) 상세 생성 프롬프트
+            loadPrompt("travel_plan_segment", "prompt/travel_plan_segment.txt");
+
             log.info("프롬프트 로드 완료: {} 개", prompts.size());
             
         } catch (Exception e) {
