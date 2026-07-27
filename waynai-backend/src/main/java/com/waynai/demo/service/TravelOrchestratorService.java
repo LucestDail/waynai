@@ -966,9 +966,16 @@ public class TravelOrchestratorService {
             int defaultPerNight = (int) Math.round(120000 * coef);
             Integer llmPerNight = plan.getAccommodation() != null ? plan.getAccommodation().getPricePerNightKrw() : null;
             // LLM 이 넣은 1박 요금이 비현실적으로 낮으면(통화혼동·자리표시자) 계수 기반 기본값으로 대체.
-            int perNight = (llmPerNight != null && llmPerNight >= 15000) ? llmPerNight : defaultPerNight;
-            if ((llmPerNight == null || llmPerNight < 15000) && plan.getAccommodation() != null) {
-                plan.getAccommodation().setPricePerNightKrw(perNight); // UI 표시 일관성
+            boolean usedDefaultNight = !(llmPerNight != null && llmPerNight >= 15000);
+            int perNight = usedDefaultNight ? defaultPerNight : llmPerNight;
+            if (plan.getAccommodation() != null) {
+                if (usedDefaultNight) {
+                    plan.getAccommodation().setPricePerNightKrw(perNight);   // UI 표시 일관성
+                    plan.getAccommodation().setPriceEstimated(true);          // 기본값 대체 = 추정치
+                } else if (plan.getAccommodation().getPriceEstimated() == null) {
+                    plan.getAccommodation().setPriceEstimated(true);          // 크롤 실가격(false)이 아니면 추정 취급
+                }
+                // 크롤 실가격(priceEstimated=false)은 그대로 유지 → "예상" 라벨 미표시
             }
             int foodPerDay = (int) Math.round(40000 * coef);      // 1인 1일 식비
             int activPerDay = (int) Math.round(20000 * coef);     // 1인 1일 입장/액티비티

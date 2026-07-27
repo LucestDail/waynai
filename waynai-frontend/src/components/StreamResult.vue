@@ -91,7 +91,7 @@
             </span>
           </div>
           <div class="stay-foot">
-            <span v-if="plan.accommodation.pricePerNightKrw" class="stay-price">1박 {{ plan.accommodation.pricePerNightKrw.toLocaleString('ko-KR') }}원~</span>
+            <span v-if="plan.accommodation.pricePerNightKrw" class="stay-price">1박 {{ plan.accommodation.pricePerNightKrw.toLocaleString('ko-KR') }}원~<span v-if="plan.accommodation.priceEstimated !== false" class="price-est" title="실시간 실가격이 아닌 추정치입니다">예상</span></span>
             <a v-if="plan.accommodation.bookingUrl" :href="plan.accommodation.bookingUrl" target="_blank" rel="noopener" class="stay-book">숙소 예약</a>
           </div>
         </div>
@@ -1156,6 +1156,7 @@ const showToast = (message: string) => {
 .stay-meta { font-size:0.82rem; color: var(--wa-text-mid,#666); margin-left:0.5rem; }
 .stay-foot { display:flex; align-items:center; justify-content:space-between; margin-top:0.5rem; }
 .stay-price { font-weight:700; color: var(--wa-terra,#c1593a); }
+.price-est { margin-left:6px; font-size:11px; font-weight:600; color:#8a6d3b; background:#fcf3d9; border:1px solid #f0e0b0; border-radius:5px; padding:1px 5px; vertical-align:middle; }
 .stay-book { text-decoration:none; font-size:0.82rem; font-weight:600; background: var(--wa-ocean,#1a3b5c); color:#fff; padding:6px 14px; border-radius:8px; }
 @media (max-width: 760px) { .stay-block { padding-left:1.25rem; padding-right:1.25rem; } }
 </style>

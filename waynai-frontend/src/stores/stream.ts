@@ -40,6 +40,7 @@ export interface Accommodation {
   type?: string;
   pricePerNightKrw?: number;
   bookingUrl?: string;
+  priceEstimated?: boolean;
 }
 
 export interface Meal {

@@ -60,8 +60,9 @@ public class TravelPlanDto {
         private String name;              // 호텔/숙소명
         private String area;              // 지역/위치
         private String type;              // 호텔/게스트하우스/료칸 등
-        private Integer pricePerNightKrw; // 1박 예상가격(원)
+        private Integer pricePerNightKrw; // 1박 가격(원)
         private String bookingUrl;        // 예약 링크
+        private Boolean priceEstimated;   // true=추정(LLM/규칙), false=실가격(크롤). null→추정 취급
     }
 
     @Data

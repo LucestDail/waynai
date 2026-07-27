@@ -112,6 +112,7 @@ public class HotelCrawlClient {
                 .area(areaStr.isBlank() ? null : areaStr)
                 .type(grade + rating)
                 .pricePerNightKrw(price)
+                .priceEstimated(false) // 크롤 실가격
                 .bookingUrl(id.isBlank() ? searchLink(name) : "https://www.yeogi.com/domestic-accommodations/" + id)
                 .build();
     }
