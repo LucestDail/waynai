@@ -986,6 +986,20 @@ public class TravelOrchestratorService {
             plan.setEstimatedBudgetKrw(total);
             plan.setBudget(String.format("약 %,d원 (%d인 기준%s)", total, party,
                     estimatedFlight ? ", 항공권 추정치 포함" : ""));
+
+            // 일자별 비용을 규칙기반 계산값으로 통일(LLM 비일관 항목 제거) → 총액·물가모델과 정합.
+            // 그날 온그라운드 경비 = 식비+액티비티+현지교통(1인당×인원) + 그날 밤 숙박(마지막날 제외).
+            // 항공·도시간이동·기타버퍼는 1회성/여행단위라 상단 총액에만 반영(일자 합계엔 미포함).
+            List<TravelPlanDto.DayPlan> it = plan.getItinerary();
+            if (it != null && !it.isEmpty()) {
+                int n = it.size();
+                int perDayGround = (foodPerDay + activPerDay) * party + localTransDay;
+                for (int d = 0; d < n; d++) {
+                    int dayCost = perDayGround + (d < n - 1 ? perNight * rooms : 0); // 마지막날은 숙박 없음
+                    it.get(d).setEstimatedCost(String.format("약 %,d원 (숙박·식비·현지교통 등)", dayCost));
+                    it.get(d).setCostItems(null); // LLM 비일관 항목 제거 → 계산값 문자열로 통일
+                }
+            }
             log.info("[orchestrator] 비용 재계산: 총 {}원 ({}인, {}박, 물가계수 {})", total, party, nights, coef);
         } catch (Exception e) {
             log.warn("[orchestrator] 비용 계산 실패 (무시): {}", e.getMessage());
