@@ -50,7 +50,7 @@ public class TravelOrchestratorService {
     private final com.waynai.demo.client.RoutingApiClient routingApiClient;
     private final com.waynai.demo.client.IataResolver iataResolver;
     private final com.waynai.demo.client.TavilyApiClient tavilyApiClient;
-    private final com.waynai.demo.client.HotellookApiClient hotellookApiClient;
+    private final com.waynai.demo.client.HotelCrawlClient hotelCrawlClient;
     private final com.waynai.demo.client.GeocodingClient geocodingClient;
     private final com.waynai.demo.client.DaeroClient daeroClient;
 
@@ -239,11 +239,12 @@ public class TravelOrchestratorService {
                 // LLM 추상 숙소 대신 실제 호텔(가격·예약링크) 부착.
                 plan.setAccommodation(hotels.get(0));
             }
-            // LLM 이 채운 숙소에 예약 링크가 없으면 Hotellook 검색 딥링크로 보완(예약 버튼 활성).
-            if (plan != null && plan.getAccommodation() != null
+            // 숙소에 예약 링크가 없으면 여기어때 검색 딥링크로 보완(국내 전용, 예약 버튼 활성).
+            boolean domesticPlan = intent == null || !Boolean.TRUE.equals(intent.getInternational());
+            if (plan != null && domesticPlan && plan.getAccommodation() != null
                     && (plan.getAccommodation().getBookingUrl() == null || plan.getAccommodation().getBookingUrl().isBlank())) {
                 plan.getAccommodation().setBookingUrl(
-                        hotellookApiClient.searchLink(resolveDestinationName(intent, query)));
+                        hotelCrawlClient.searchLink(resolveDestinationName(intent, query)));
             }
             // 좌표 누락 보정 + LLM 환각 좌표(한국 밖·지역서 과도히 먼) 교정 (지도/경로/요금/대중교통 정확도↑). 지연 제한 위해 상한.
             if (plan != null) {
@@ -494,10 +495,12 @@ public class TravelOrchestratorService {
     /** 숙소 조회(Hotellook). 미설정/실패 시 빈 리스트. */
     private List<TravelPlanDto.Accommodation> safeCollectHotels(IntentAnalysisDto intent, String query) {
         try {
-            if (!hotellookApiClient.isEnabled()) return List.of();
+            // 여기어때 크롤은 국내 전용 → 해외는 미지원(빈 결과 → 규칙기반 추정치로 폴백).
+            if (intent != null && Boolean.TRUE.equals(intent.getInternational())) return List.of();
+            if (!hotelCrawlClient.isEnabled()) return List.of();
             String dest = resolveDestinationName(intent, query);
             if (dest == null || dest.isBlank()) return List.of();
-            return hotellookApiClient.search(dest, 4);
+            return hotelCrawlClient.search(dest, 4);
         } catch (Exception e) {
             log.warn("[orchestrator] 숙소 조회 실패 (무시): {}", e.getMessage());
             return List.of();
