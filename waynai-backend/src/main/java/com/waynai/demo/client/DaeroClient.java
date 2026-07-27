@@ -50,15 +50,17 @@ public class DaeroClient {
                 if (!n.path("found").asBoolean(false)) return null;
                 String firstRoute = "";
                 String firstMode = "";
+                // 도보 제외 전 구간의 수단을 등장순으로 수집(예: 지하철·버스)
+                java.util.LinkedHashSet<String> modeSet = new java.util.LinkedHashSet<>();
                 for (JsonNode leg : n.path("legs")) {
-                    if (!"WALK".equals(leg.path("mode").asText())) {
-                        firstMode = leg.path("mode").asText();
-                        firstRoute = leg.path("route").asText("");
-                        break;
+                    String mode = leg.path("mode").asText();
+                    if (!"WALK".equals(mode)) {
+                        if (firstMode.isEmpty()) { firstMode = mode; firstRoute = leg.path("route").asText(""); }
+                        modeSet.add(modeKo(mode));
                     }
                 }
                 return new Transit(n.path("durationMin").asInt(), n.path("transfers").asInt(),
-                        n.path("estimatedFareKrw").asInt(), firstMode, firstRoute);
+                        n.path("estimatedFareKrw").asInt(), firstMode, firstRoute, String.join("·", modeSet));
             }
         } catch (Exception e) {
             log.debug("[daero] 조회 실패: {}", e.getMessage());
@@ -66,12 +68,20 @@ public class DaeroClient {
         }
     }
 
-    public record Transit(int durationMin, int transfers, int fareKrw, String firstMode, String firstRoute) {
+    /** GTFS 모드 코드 → 한글 표기. */
+    static String modeKo(String mode) {
+        return switch (mode) {
+            case "BUS" -> "버스"; case "SUBWAY" -> "지하철"; case "RAIL" -> "기차";
+            case "AIR" -> "항공"; case "FERRY" -> "여객선"; default -> "대중교통";
+        };
+    }
+
+    /** modeSummary: 도보 제외 사용 수단(등장순, "지하철·버스"). */
+    public record Transit(int durationMin, int transfers, int fareKrw,
+                          String firstMode, String firstRoute, String modeSummary) {
         public String note() {
-            String m = switch (firstMode) {
-                case "BUS" -> "버스"; case "SUBWAY" -> "지하철"; case "RAIL" -> "기차"; default -> "대중교통";
-            };
             String route = firstRoute != null && !firstRoute.isBlank() ? " " + firstRoute : "";
+            String m = modeSummary != null && !modeSummary.isBlank() ? modeSummary : modeKo(firstMode);
             return String.format("대중교통 약 %d분·환승 %d회·~%,d원(%s%s)", durationMin, transfers, fareKrw, m, route);
         }
     }

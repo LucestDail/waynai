@@ -425,6 +425,7 @@ public class TravelOrchestratorService {
                 }
                 if (pts.size() < 2) continue;
                 int totalMin = 0, totalTransfers = 0, totalFare = 0, legs = 0;
+                java.util.LinkedHashSet<String> dayModes = new java.util.LinkedHashSet<>();
                 for (int i = 0; i + 1 < pts.size(); i++) {
                     var t = daeroClient.transit(pts.get(i)[0], pts.get(i)[1],
                             pts.get(i + 1)[0], pts.get(i + 1)[1], "09:00");
@@ -433,9 +434,13 @@ public class TravelOrchestratorService {
                     totalTransfers += t.transfers();
                     totalFare += t.fareKrw();
                     legs++;
+                    if (t.modeSummary() != null && !t.modeSummary().isBlank()) {
+                        for (String m : t.modeSummary().split("·")) if (!m.isBlank()) dayModes.add(m);
+                    }
                 }
                 if (legs == 0) continue;
-                String note = String.format("대중교통 약 %d분·환승 %d회·~%,d원", totalMin, totalTransfers, totalFare);
+                String modeStr = dayModes.isEmpty() ? "" : " (" + String.join("·", dayModes) + ")";
+                String note = String.format("대중교통 약 %d분·환승 %d회·~%,d원", totalMin, totalTransfers, totalFare) + modeStr;
                 day.setTransportation(day.getTransportation() == null || day.getTransportation().isBlank()
                         ? note
                         : day.getTransportation() + " · " + note);
