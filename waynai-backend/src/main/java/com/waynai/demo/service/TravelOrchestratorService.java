@@ -245,9 +245,9 @@ public class TravelOrchestratorService {
                 plan.getAccommodation().setBookingUrl(
                         hotellookApiClient.searchLink(resolveDestinationName(intent, query)));
             }
-            // 좌표 없는 방문지를 지오코딩으로 보정 (지도/경로 완성도↑). 지연 제한 위해 상한.
+            // 좌표 누락 보정 + LLM 환각 좌표(한국 밖·지역서 과도히 먼) 교정 (지도/경로/요금/대중교통 정확도↑). 지연 제한 위해 상한.
             if (plan != null) {
-                fillMissingCoords(plan);
+                fillMissingCoords(plan, intent);
             }
             // 비용을 규칙 기반으로 현실화 (LLM 추측 대신 항공 실값 + 숙소×박수 + per-diem).
             if (plan != null) {
@@ -876,26 +876,49 @@ public class TravelOrchestratorService {
     }
 
     /** 좌표 없는 방문지를 이름+목적지로 지오코딩해 채운다(상한 있음, best-effort). */
-    private void fillMissingCoords(TravelPlanDto plan) {
+    private void fillMissingCoords(TravelPlanDto plan, IntentAnalysisDto intent) {
         try {
             if (plan.getItinerary() == null) return;
             String region = plan.getDestination();
+            boolean domestic = intent == null || !Boolean.TRUE.equals(intent.getInternational());
+            // 국내 여행: 지역 중심 좌표(1회 지오코딩)를 스팟 타당성 기준으로 사용.
+            double[] center = (domestic && region != null && !region.isBlank())
+                    ? geocodingClient.geocode(region, "대한민국") : null;
             int budget = 12; // Nominatim 초당 1회 → 지연 제한 위해 최대 12곳만
+            int fixed = 0;
             for (TravelPlanDto.DayPlan day : plan.getItinerary()) {
                 if (day.getSpots() == null) continue;
                 for (TravelPlanDto.Spot s : day.getSpots()) {
-                    if (budget <= 0) return;
-                    if (s.getLatitude() == null || s.getLongitude() == null) {
-                        if (s.getName() == null || s.getName().isBlank()) continue;
-                        double[] p = geocodingClient.geocode(s.getName(), region);
-                        budget--;
-                        if (p != null) { s.setLatitude(p[0]); s.setLongitude(p[1]); }
+                    boolean missing = s.getLatitude() == null || s.getLongitude() == null;
+                    boolean implausible = false;
+                    if (!missing && domestic) {
+                        double lat = s.getLatitude(), lon = s.getLongitude();
+                        boolean inKorea = lat >= 33 && lat <= 39.5 && lon >= 124 && lon <= 132;
+                        boolean farFromRegion = center != null && haversineKm(lat, lon, center[0], center[1]) > 100;
+                        implausible = !inKorea || farFromRegion; // 한국 밖 or 지역서 100km↑ → LLM 환각 의심
                     }
+                    if (!(missing || implausible)) continue;
+                    if (s.getName() == null || s.getName().isBlank()) continue;
+                    if (budget <= 0) { if (implausible) { s.setLatitude(null); s.setLongitude(null); } continue; }
+                    double[] p = geocodingClient.geocode(s.getName(), region);
+                    budget--;
+                    boolean okKorea = p != null && (!domestic || (p[0] >= 33 && p[0] <= 39.5 && p[1] >= 124 && p[1] <= 132));
+                    if (okKorea) { s.setLatitude(p[0]); s.setLongitude(p[1]); if (implausible) fixed++; }
+                    else if (implausible) { s.setLatitude(null); s.setLongitude(null); fixed++; } // 교정 실패 → 오염 좌표 제거
                 }
             }
+            if (fixed > 0) log.info("[orchestrator] 좌표 교정(환각/오류) {}건", fixed);
         } catch (Exception e) {
-            log.warn("[orchestrator] 지오코딩 실패 (무시): {}", e.getMessage());
+            log.warn("[orchestrator] 지오코딩 보정 실패 (무시)", e);
         }
+    }
+
+    /** 두 좌표 간 대략 거리(km, Haversine). */
+    private static double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        double r = 6371.0, dLat = Math.toRadians(lat2 - lat1), dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     /** 동반 유형/스타일로 인원 추정. */

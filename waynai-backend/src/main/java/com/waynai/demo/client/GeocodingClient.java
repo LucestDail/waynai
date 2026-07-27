@@ -29,6 +29,7 @@ public class GeocodingClient {
 
     private final ObjectMapper objectMapper;
     private final Map<String, double[]> cache = new ConcurrentHashMap<>();
+    private static final double[] NOT_FOUND = new double[0]; // ConcurrentHashMap 은 null 값 불가 → 음성결과 sentinel
     private volatile long lastCallMs = 0;
 
     /** 장소명(+지역 힌트) → [lat, lng]. 실패 시 null. */
@@ -36,7 +37,8 @@ public class GeocodingClient {
         if (name == null || name.isBlank()) return null;
         String q = regionHint != null && !regionHint.isBlank() ? name + ", " + regionHint : name;
         String key = q.toLowerCase();
-        if (cache.containsKey(key)) return cache.get(key);
+        double[] cached = cache.get(key);
+        if (cached != null) return cached.length == 2 ? cached : null; // sentinel(길이0) → 이전 실패
         try {
             // 초당 1회 제한 준수 (간단 스로틀).
             long since = System.currentTimeMillis() - lastCallMs;
@@ -56,7 +58,7 @@ public class GeocodingClient {
         } catch (Exception e) {
             log.debug("[geocode] 실패 '{}': {}", q, e.getMessage());
         }
-        cache.put(key, null);
+        cache.put(key, NOT_FOUND);
         return null;
     }
 
