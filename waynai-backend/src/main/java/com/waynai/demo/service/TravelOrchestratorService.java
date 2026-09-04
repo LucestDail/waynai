@@ -231,6 +231,9 @@ public class TravelOrchestratorService {
                     }
                 }
             }
+            // 두 경로가 여기서 합류한다. 일수 정합은 공통으로 건다
+            // (segmented 는 자체 정합이 끝나 있어 no-op, 단일 경로만 실제로 보정된다).
+            reconcileDays(plan, intent);
             if (plan != null && flights != null && !flights.isEmpty()) {
                 // LLM 이 지어낸 값 대신 실제 항공권 오퍼를 계획에 부착.
                 plan.setFlights(flights);
@@ -735,6 +738,40 @@ public class TravelOrchestratorService {
      * 권역별로 나눠 상세 일정을 생성하고 하나의 계획으로 병합한다.
      * 각 권역이 완성될 때마다 partial 이벤트로 실시간 빌드업을 보낸다.
      */
+    /**
+     * 계획의 일수를 요청과 맞춘다 — {@code itinerary} 길이·{@code days}·{@code duration} 이 서로 어긋나지 않게.
+     *
+     * <p>단일 도시 경로에는 이 정합이 없어서 LLM 이 뱉은 값이 그대로 나갔다. 실측(2026-09-04)에서
+     * "부산 2박3일" 5회 중 3회가 어긋났고, {@code duration="2박 3일"} 인데 {@code days=5} 처럼
+     * 필드끼리 모순되는 응답까지 나왔다. intent 는 days=3 으로 정확히 뽑고 있었으므로
+     * 파싱이 아니라 생성 결과를 검증하지 않은 것이 원인이다.
+     *
+     * <p>규칙은 {@link #generateSegmentedPlan} 과 같다: 요청보다 길면 자르고, day 번호를 다시 매기고,
+     * days/duration 을 실제 일정 길이에 맞춘다. 모자란 경우는 지어내지 않고 경고만 남긴다.
+     */
+    static void reconcileDays(TravelPlanDto plan, IntentAnalysisDto intent) {
+        if (plan == null || plan.getItinerary() == null || plan.getItinerary().isEmpty()) {
+            return;
+        }
+        List<TravelPlanDto.DayPlan> days = plan.getItinerary();
+        Integer want = intent != null ? intent.getDays() : null;
+
+        if (want != null && want > 0 && days.size() > want) {
+            log.warn("[orchestrator] 일정이 요청보다 김({}일 > {}일) → 잘라냄", days.size(), want);
+            days = new ArrayList<>(days.subList(0, want));
+            plan.setItinerary(days);
+        } else if (want != null && want > 0 && days.size() < want) {
+            // 없는 일정을 지어내는 것보다 짧게 나가는 편이 낫다. 대신 필드끼리는 맞춰 둔다.
+            log.warn("[orchestrator] 일정이 요청보다 짧음({}일 < {}일) — 모델 출력 부족", days.size(), want);
+        }
+
+        for (int i = 0; i < days.size(); i++) {
+            days.get(i).setDay(i + 1);
+        }
+        plan.setDays(days.size());
+        plan.setDuration(days.size() + "일");
+    }
+
     private TravelPlanDto generateSegmentedPlan(IntentAnalysisDto intent, String ragCtx,
                                                 Sinks.Many<TravelEvent> sink) {
         List<TravelPlanDto.DayPlan> merged = new ArrayList<>();
