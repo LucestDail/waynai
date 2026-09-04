@@ -202,6 +202,10 @@ public class NaverApiClient {
         try {
             URL url = new URL(apiUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            // HttpURLConnection 의 기본 타임아웃은 무한(0)이다. 네이버가 응답하지 않으면
+            // SSE 스트림이 통째로 멈추므로 상한을 둔다(형제 클라이언트들과 같은 방식).
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(10000);
             if (tlsInsecure && conn instanceof HttpsURLConnection https) {
                 if (insecureSocketFactory != null) https.setSSLSocketFactory(insecureSocketFactory);
                 if (insecureHostnameVerifier != null) https.setHostnameVerifier(insecureHostnameVerifier);

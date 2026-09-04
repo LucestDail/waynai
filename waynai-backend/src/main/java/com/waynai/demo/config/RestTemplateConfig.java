@@ -1,11 +1,13 @@
 package com.waynai.demo.config;
 
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -51,10 +53,21 @@ public class RestTemplateConfig {
         );
 
         // HTTP 클라이언트 생성
+        //
+        // ⚠️ 응답 대기 상한(responseTimeout)은 여기서 줘야 한다.
+        // Spring 6.1 의 HttpComponentsClientHttpRequestFactory 에는 setReadTimeout 이 없어
+        // (HttpClient 5 는 소켓 타임아웃을 RequestConfig 로 다룬다) 아래 factory 설정만으로는
+        // 연결 수립·풀 대기 시간만 제한되고 **응답 대기는 무한**이 된다.
+        // 실제로 공공데이터포털이 느려진 날 myapi 가 같은 이유로 호출자 타임아웃을 넘긴 적이 있다.
         CloseableHttpClient httpClient = HttpClients.custom()
                 .setConnectionManager(
                         PoolingHttpClientConnectionManagerBuilder.create()
                                 .setSSLSocketFactory(sslConnectionSocketFactory)
+                                .build()
+                )
+                .setDefaultRequestConfig(
+                        RequestConfig.custom()
+                                .setResponseTimeout(Timeout.ofSeconds(20))
                                 .build()
                 )
                 .build();
