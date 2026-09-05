@@ -56,14 +56,49 @@
       </form>
     </section>
 
-    <section v-if="historyItems.length" class="saved-strip">
-      <h3 class="saved-title">저장한 여행</h3>
-      <div class="saved-list">
+    <!-- 저장이 0건이어도 보인다 — 다른 기기의 코드를 넣을 진입점이 필요하기 때문. -->
+    <section class="saved-strip">
+      <div class="saved-head">
+        <h3 class="saved-title">저장한 여행</h3>
+        <button class="device-toggle" @click="toggleDevice">
+          {{ showDevice ? '닫기' : '다른 기기에서 보기' }}
+        </button>
+      </div>
+
+      <div v-if="showDevice" class="device-panel">
+        <p class="device-desc">
+          저장한 여행은 <strong>아래 코드</strong>로 구분됩니다. 가입도 로그인도 없어서
+          이 코드가 유일한 열쇠예요.
+        </p>
+        <p class="device-warn">
+          ⚠️ 코드를 잃어버리면 저장한 여행을 되찾을 수 없습니다. 다른 곳에 적어 두세요.
+        </p>
+
+        <label class="device-label">내 코드</label>
+        <div class="device-row">
+          <input class="device-input" :value="myToken" readonly @focus="selectAll" />
+          <button class="device-btn" @click="copyToken">{{ copied ? '복사됨' : '복사' }}</button>
+        </div>
+
+        <label class="device-label">다른 기기의 코드로 바꾸기</label>
+        <div class="device-row">
+          <input
+            v-model="inputToken"
+            class="device-input"
+            placeholder="다른 기기에서 복사한 코드를 붙여넣으세요"
+          />
+          <button class="device-btn" :disabled="!inputToken.trim()" @click="applyToken">적용</button>
+        </div>
+        <p v-if="deviceMsg" class="device-msg">{{ deviceMsg }}</p>
+      </div>
+
+      <div v-if="historyItems.length" class="saved-list">
         <div v-for="item in historyItems" :key="item.id" class="saved-item">
           <button class="saved-load" @click="openSaved(item)">{{ item.title }}</button>
           <button class="saved-del" @click="removeSaved(item.id)" aria-label="삭제">✕</button>
         </div>
       </div>
+      <p v-else class="device-msg">이 코드로 저장된 여행이 아직 없어요.</p>
     </section>
 
     <section v-if="shouldShowProgress" class="progress-wrap">
@@ -81,6 +116,7 @@ import SearchProgress from '@/components/SearchProgress.vue';
 import StreamResult from '@/components/StreamResult.vue';
 import { useStreamStore } from '@/stores/stream';
 import { useHistoryStore, type SavedPlan } from '@/stores/history';
+import { getOwnerToken, setOwnerToken } from '@/services/planService';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const streamStore = useStreamStore();
@@ -100,6 +136,48 @@ const openSaved = async (item: SavedPlan) => {
   }, 60);
 };
 const removeSaved = (id: string) => historyStore.remove(id);
+
+// --- 기기 연결(소유자 코드) ---
+// 서버 저장은 가입 없이 익명 토큰 하나로만 구분한다. 그래서 이 코드가 유일한 열쇠이고,
+// 잃으면 복구 수단이 없다. 사용자가 그 사실을 알고 백업할 수 있어야 한다.
+const showDevice = ref(false);
+const myToken = ref('');
+const inputToken = ref('');
+const copied = ref(false);
+const deviceMsg = ref('');
+
+const toggleDevice = () => {
+  showDevice.value = !showDevice.value;
+  if (showDevice.value) {
+    myToken.value = getOwnerToken();
+    deviceMsg.value = '';
+  }
+};
+
+const selectAll = (e: FocusEvent) => (e.target as HTMLInputElement)?.select();
+
+const copyToken = async () => {
+  try {
+    await navigator.clipboard.writeText(myToken.value);
+  } catch {
+    return; // 클립보드 권한이 없으면 사용자가 직접 선택해 복사하면 된다
+  }
+  copied.value = true;
+  setTimeout(() => (copied.value = false), 1500);
+};
+
+const applyToken = async () => {
+  const next = inputToken.value.trim();
+  if (!next) return;
+  setOwnerToken(next);
+  myToken.value = next;
+  inputToken.value = '';
+  deviceMsg.value = '코드를 바꿨어요. 목록을 불러오는 중…';
+  await historyStore.refresh();
+  deviceMsg.value = historyStore.syncError
+    ? `목록을 못 가져왔어요: ${historyStore.syncError}`
+    : `${historyItems.value.length}건을 불러왔어요.`;
+};
 
 // 자연어 입력 하나로 통일. 콤보/시군구 코드 제거 → 서버(LLM)가 문장에서 조건을 판단.
 const planText = ref('');
@@ -400,7 +478,47 @@ onUnmounted(() => streamStore.stopStream());
 <style scoped>
 /* --- 저장한 여행 --- */
 .saved-strip { max-width: 960px; margin: 1.5rem auto 0; }
+.saved-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
 .saved-title { font-size: 0.9rem; font-weight: 700; color: var(--wa-ocean); margin: 0 0 0.6rem; }
+
+/* 기기 연결(소유자 코드) */
+.device-toggle {
+  background: none; border: none; padding: 0;
+  font-size: 0.8rem; color: var(--wa-ocean); opacity: 0.75;
+  text-decoration: underline; cursor: pointer;
+}
+.device-toggle:hover { opacity: 1; }
+.device-panel {
+  background: var(--wa-cream);
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 60%, transparent);
+  border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 0.75rem;
+}
+.device-desc { font-size: 0.83rem; line-height: 1.5; margin: 0 0 0.35rem; }
+.device-warn { font-size: 0.83rem; line-height: 1.5; margin: 0 0 0.75rem; color: #9a3412; }
+.device-label {
+  display: block; font-size: 0.76rem; font-weight: 700;
+  color: var(--wa-ocean); opacity: 0.8; margin: 0.6rem 0 0.3rem;
+}
+.device-row { display: flex; gap: 0.4rem; }
+.device-input {
+  flex: 1; min-width: 0;
+  padding: 0.45rem 0.6rem; font-size: 0.82rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 70%, transparent);
+  border-radius: 8px; background: #fff;
+  /* readonly 입력은 브라우저가 흐리게 그린다. 이 값은 사용자가 읽어서 백업해야 하는
+     코드라 또렷해야 한다(-webkit-text-fill-color 를 같이 줘야 Safari 에서도 먹는다). */
+  color: var(--wa-ocean);
+  -webkit-text-fill-color: var(--wa-ocean);
+  opacity: 1;
+}
+.device-btn {
+  flex: 0 0 auto; padding: 0.45rem 0.8rem; font-size: 0.82rem;
+  border: 1px solid color-mix(in srgb, var(--wa-sand) 70%, transparent);
+  border-radius: 8px; background: #fff; cursor: pointer; white-space: nowrap;
+}
+.device-btn:disabled { opacity: 0.45; cursor: default; }
+.device-msg { font-size: 0.8rem; margin: 0.5rem 0 0; opacity: 0.75; }
 .saved-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .saved-item {
   display: inline-flex; align-items: center;
