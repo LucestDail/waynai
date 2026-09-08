@@ -34,7 +34,19 @@ AI 여행 플래너. **OpenRouter(OpenAI 호환) LLM** + 공공 API 기반 풀�
 - 엔드포인트: `GET /api/travel/plan/stream`(SSE), `POST /api/travel/plan/structured`(JSON), `GET /api/travel/plan`(text).
 - SSE 이벤트 타입: `stage / intent / sources.tour / sources.naver / model / token / plan / done / error`.
 - 프론트 소비: `services/streamService.ts` → `stores/stream.ts` → `components/StreamResult.vue`(일별 타임라인).
-- **Stateless**: DB/JPA/인증 전혀 없음. 계획 저장 안 됨.
+- **DB·로그인 없음**, 하지만 **계획은 서버에 보관된다**(2026-09-05 도입).
+  - 소유자 구분은 **익명 토큰 하나**(`X-Owner-Token` 헤더). 서버는 **SHA-256 해시만** 저장해
+    개인정보를 갖지 않는다. 가입·로그인이 없다.
+  - 저장소는 DB 가 아니라 **JSON 파일** — `waynai.storage.dir`(기본 `waynai-backend/data/plans/<토큰해시>/`).
+    `.gitignore` 대상이라 `git pull`·jar 교체에 보존된다. 일일 백업 대상에 포함.
+  - API: `POST/GET /api/plans` · `GET/DELETE /api/plans/{id}` · `GET /api/plans/{id}/shared`(토큰 불요).
+    구현 = `controller/PlanController.java`, `service/PlanArchiveService.java`.
+  - 🔴 **토큰을 잃으면 서버 저장분도 복구할 수 없다.** 그래서 프론트 `/travel-plan` 의
+    "다른 기기에서 보기" 패널이 코드 표시·복사·경고와 기기 이전을 제공한다(유일한 안전망).
+  - ⚠️ 게이트웨이(nginx)가 외부 요청에 Basic 을 요구하므로 **`Authorization` 은 게이트웨이 전용**이다.
+    소유자 토큰을 전용 헤더로 받는 이유가 이것(simpleStock `X-Access-Token`,
+    chominjungum-web `X-Auth-Token` 과 같은 관례).
+  - 2026-09-08 라이브 실측: 저장→목록→**남의 토큰으로는 안 보임(소유자 격리)**→공유 조회 200→삭제 204.
 
 ---
 
