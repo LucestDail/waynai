@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# 🔴 실패를 세어 마지막 줄과 종료코드에 반영한다(2026-09-14).
+DEPLOY_ERRORS=0
+DEPLOY_WARNINGS=0
+
 # WaynAI 지속적 배포 스크립트
 # 사용법: ./deploy.sh [backend|frontend|all]
 
@@ -23,10 +27,12 @@ log_success() {
 
 log_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
+    DEPLOY_WARNINGS=$(( DEPLOY_WARNINGS + 1 ))
 }
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+    DEPLOY_ERRORS=$(( DEPLOY_ERRORS + 1 ))
 }
 
 # 설정 변수
@@ -497,4 +503,15 @@ case "${1:-all}" in
         ;;
 esac
 
+# 🔴 2026-09-14: 종전에는 `status` 가 "[ERROR] 백엔드 중지됨" 을 찍고도
+#    마지막 줄이 이것이었고 exit 0 이었다. **마지막 줄이 그 실행의 전부를 말해야 한다.**
+#    log_error/log_warning 이 몇 번 불렸는지 세어 종료코드로 가른다.
+if [ "${DEPLOY_ERRORS:-0}" -gt 0 ]; then
+    log_error "배포 스크립트 실행 실패 — 오류 ${DEPLOY_ERRORS}건 (위 로그 확인)"
+    exit 1
+fi
+if [ "${DEPLOY_WARNINGS:-0}" -gt 0 ]; then
+    log_warning "배포 스크립트 실행 완료 — 단, 경고 ${DEPLOY_WARNINGS}건이 있다"
+    exit 0
+fi
 log_success "배포 스크립트 실행 완료!"
