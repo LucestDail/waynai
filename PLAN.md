@@ -1,5 +1,26 @@
 # WaynAI — 상세 구현 계획
 
+> **표기 범례** (2026-09-16 전수 대조)
+> `[x]` 했다 · `[~]` 다르게 해결했다 · `[-]` 안 하기로 했다 · `[ ]` 아직
+>
+> ⚠️ `[~]`·`[-]` 는 표준 체크박스 문법이 아니라 렌더러에 따라 `[ ]` 처럼 보인다.
+> 그래서 **항목마다 `←` 뒤에 라벨**을 붙였다.
+>
+> 🔴 **이 PLAN 의 가장 큰 오해는 "외부 API 연동이 하나도 안 됐다" 로 읽히는 것이다.**
+> 실제로는 **PLAN 이 지목한 API 를 거의 전부 다른 것으로 구현했다**:
+>
+> | PLAN 이 지목 | 실제 구현 | 왜 |
+> |---|---|---|
+> | Amadeus (항공) | **Travelpayouts/Aviasales** | 무료 제휴 |
+> | Booking.com (숙소) | **한국관광공사 `apis.data.go.kr`** + 크롤 | 제휴에 사업자 등록 필요 |
+> | Google Directions | **OpenRouteService** | 무료 |
+> | Google Transit | **daero**(자체 RAPTOR/GTFS 엔진) | 자체 자산 재사용 |
+> | Google Places | **Naver 검색 + Nominatim** | 무료 |
+>
+> ⇒ 47건 중 **9건은 이미 완료**, **12건은 다르게 해결**, **4건은 안 하기로** 한 것이었다.
+> **진짜 잔여는 22건**이고, 대부분 **국제 여행**(비자·보험·시차) 과 **모바일 고급 기능**이다.
+
+
 ## 1. 프로젝트 비전
 
 풀스택 풀패키지 엔드 투 엔드 여행 어시스턴트. 일정 자동화, 여행 정보 자동 산출, 여행 제안, 최적의 여행 경비, 날씨, 항공편, 교통편, 현지 사항까지 국제적 이동까지 원스톱으로 제공. 모바일 GPS를 통한 이동 경로, 교통편, 주변 장소 추천 실시간 통신 지원.
@@ -55,40 +76,40 @@ Vue 3 프로젝트이므로 Vuetify 3 (M3 기반) 또는 커스텀 CSS로 적용
 **1.1 코드 정리**
 - [ ] 백엔드 README 버전 수정 (Spring Boot 4 → 3.2, Java 24 → 17)
 - [ ] 프론트 API URL 하드코딩 제거 → `VITE_API_BASE_URL` 환경 변수 필수화
-- [ ] CORS: `allowedOrigins("*")` → 명시적 도메인 제한
-- [ ] `application.properties` 내 공공 API 서비스키 → 환경 변수 분리
+- [x] CORS: `allowedOrigins("*")` → 명시적 도메인 제한  ← **됨**: `WebConfig` 가 `allowedOriginPatterns(origins)` — 설정 기반 제한(하드코딩 `"*"` 아님)
+- [x] `application.properties` 내 공공 API 서비스키 → 환경 변수 분리  ← **됨**: 공공 API 서비스키 env 참조
 
 **1.2 기존 코드와 문서 불일치 수정**
-- [ ] README에 없는 실제 컨트롤러 문서화 (TravelController, ChatController 등)
+- [x] README에 없는 실제 컨트롤러 문서화 (TravelController, ChatController 등)  ← **됨**: 컨트롤러 12개 실재(Travel·Chat·Flight·Plan·Route·TouristInfo 등)
 - [ ] README에 있으나 코드에 없는 컨트롤러 제거 (SearchController 등)
 
 ### Phase 2 — 여행 계획 고도화 (5주)
 
 **2.1 구조화된 여행 일정**
-- [ ] 현재: AI 텍스트 → 사용자에게 텍스트로 표시
-- [ ] 개선: AI → 구조화 JSON (날짜, 시간, 장소, 교통, 비용, 좌표)
+- [-] 현재: AI 텍스트 → 사용자에게 텍스트로 표시  ← **항목 아님**: 할 일이 아니라 *당시 현황 서술*이다
+- [x] 개선: AI → 구조화 JSON (날짜, 시간, 장소, 교통, 비용, 좌표)  ← **됨**: 구조화 DTO 로 계획 생성
 - [ ] Gemini 구조화 출력 (JSON Schema) 활용
-- [ ] 타임라인 UI — 날짜별 카드, 시간축에 일정 배치
+- [x] 타임라인 UI — 날짜별 카드, 시간축에 일정 배치  ← **됨**: 타임라인 UI 구현
 
 **2.2 항공편 검색**
-- [ ] Amadeus API 연동 (항공편 검색, 가격 비교)
-- [ ] 출발지/도착지/날짜 → 최저가 항공편 목록
-- [ ] 여행 계획에 항공편 자동 연결
+- [~] Amadeus API 연동 (항공편 검색, 가격 비교)  ← **다르게 해결**: Amadeus 대신 **Travelpayouts/Aviasales**(`TravelpayoutsApiClient`) — 무료 제휴 API
+- [~] 출발지/도착지/날짜 → 최저가 항공편 목록  ← **다르게 해결**: `IataResolver` 로 지명→IATA 변환 후 최저가 조회. 구현됨
+- [~] 여행 계획에 항공편 자동 연결  ← **다르게 해결**: `FlightSearchService` 가 계획에 연결
 
 **2.3 숙소 검색**
-- [ ] Booking.com Affiliate API 또는 Google Hotels 연동
-- [ ] 위치/가격/평점 기반 추천
-- [ ] 여행 일정과 숙소 매핑
+- [~] Booking.com Affiliate API 또는 Google Hotels 연동  ← **다르게 해결**: Booking.com 제휴(사업자 필요) 대신 **한국관광공사 `apis.data.go.kr`** + `HotelCrawlClient`
+- [~] 위치/가격/평점 기반 추천  ← **다르게 해결**: 위 소스로 위치 기반 추천
+- [~] 여행 일정과 숙소 매핑  ← **다르게 해결**: `TravelOrchestratorService` 가 일정과 매핑
 
 **2.4 교통편 통합**
-- [ ] Google Directions API — 관광지 간 이동 경로/시간
-- [ ] 현지 대중교통 정보 (Google Transit)
-- [ ] 택시/우버 예상 요금
-- [ ] 최적 동선 자동 계산 (TSP 근사 알고리즘 + AI)
+- [~] Google Directions API — 관광지 간 이동 경로/시간  ← **다르게 해결**: Google Directions 대신 **OpenRouteService**
+- [~] 현지 대중교통 정보 (Google Transit)  ← **다르게 해결**: Google Transit 대신 **daero**(자체 RAPTOR/GTFS 엔진)를 소비
+- [-] 택시/우버 예상 요금  ← **안 함**: 택시/우버 예상 요금 — 국내는 daero 로 대체되고, 해외는 유료 API·사업자 등록이 필요하다
+- [~] 최적 동선 자동 계산 (TSP 근사 알고리즘 + AI)  ← **다르게 해결**: 권역분할 + LLM 으로 동선 구성(TSP 근사 대신)
 
 **2.5 여행 경비 계산기**
-- [ ] 항공 + 숙소 + 교통 + 식비 + 관광 총 예상 경비
-- [ ] 실시간 환율 자동 적용
+- [x] 항공 + 숙소 + 교통 + 식비 + 관광 총 예상 경비  ← **됨**: 총 예상 경비 산출 있음
+- [x] 실시간 환율 자동 적용  ← **됨**: 환율 반영 있음
 - [ ] 예산 대비 경비 비교
 - [ ] 경비 절감 제안 ("이 호텔 대신 에어비앤비를 쓰면 20% 절감")
 
@@ -155,7 +176,7 @@ Content-Type: application/json
 - [x] 백엔드 REST 연동 — `ApiClient` (Dio) + `GpsService` + `.env` 기반 `API_BASE_URL`
 - [x] SSE 스트리밍 연동 — `StreamService.planStream()` 으로 `/api/travel/plan/stream` 구독
 - [x] `flutter analyze` 0 에러, `flutter test` 통과, `flutter build web` 성공
-- [ ] 로그인/회원가입 (백엔드 인증 모듈 Phase 2 선행 후 착수)
+- [~] 로그인/회원가입 (백엔드 인증 모듈 Phase 2 선행 후 착수)  ← **다르게 해결**: 2026-09-05 에 **익명 토큰**(`X-Owner-Token`, SHA-256 해시만 저장)으로 갔다. 가입·로그인 없이 소유자를 가른다 — 개인정보를 수집하지 않으려는 의도적 선택
 
 **3.2 GPS 기반 실시간 기능** (부분 완료)
 - [x] 현재 위치 추적 (`geolocator` 14.x, 300m 이동 스트림)
@@ -186,15 +207,15 @@ Content-Type: application/json
 - [ ] 시차 계산기
 
 **4.2 해외 데이터소스 확장**
-- [ ] Google Places API — 해외 관광지, 맛집
-- [ ] TripAdvisor API — 리뷰, 평점
-- [ ] 날씨: OpenWeatherMap (전세계)
+- [~] Google Places API — 해외 관광지, 맛집  ← **다르게 해결**: Google Places 대신 **Naver 검색 + Nominatim**
+- [-] TripAdvisor API — 리뷰, 평점  ← **안 함**: TripAdvisor API 는 파트너 승인이 필요하다. 상품화 판단(사업자 등록 불가)과 같은 이유
+- [-] 날씨: OpenWeatherMap (전세계)  ← **안 함**: OpenWeatherMap(전세계) — 현재 국내 여행에 집중하고 기상청/공공데이터로 충분하다
 
 **4.3 웹 프론트엔드 M3 리뉴얼**
-- [ ] Vuetify 3 도입 또는 커스텀 M3 컴포넌트
-- [ ] 반응형 레이아웃 (compact/medium/expanded)
+- [~] Vuetify 3 도입 또는 커스텀 M3 컴포넌트  ← **다르게 해결**: Vuetify 도입 대신 커스텀 스타일
+- [x] 반응형 레이아웃 (compact/medium/expanded)  ← **됨**: `@media` 반응형
 - [ ] 여행 일정 타임라인 UI
-- [ ] 지도 기반 인터페이스
+- [x] 지도 기반 인터페이스  ← **됨**: 지도 인터페이스 구현
 
 ---
 
