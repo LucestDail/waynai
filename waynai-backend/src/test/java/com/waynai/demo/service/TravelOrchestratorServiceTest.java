@@ -35,7 +35,7 @@ class TravelOrchestratorServiceTest {
 
     private final IataResolver iataResolver = mock(IataResolver.class);
 
-    /** 13개 의존성 중 objectMapper 만 실객체, 나머지는 mock 으로 오케스트레이터 구성. */
+    /** 14개 의존성 중 objectMapper·BudgetAdvisorService 만 실객체, 나머지는 mock 으로 오케스트레이터 구성. */
     private TravelOrchestratorService newOrchestrator() {
         return new TravelOrchestratorService(
                 mock(IntentAnalysisService.class),
@@ -50,7 +50,8 @@ class TravelOrchestratorServiceTest {
                 mock(TavilyApiClient.class),
                 mock(HotelCrawlClient.class),
                 mock(GeocodingClient.class),
-                mock(DaeroClient.class));
+                mock(DaeroClient.class),
+                new BudgetAdvisorService());
     }
 
     @SuppressWarnings("unchecked")

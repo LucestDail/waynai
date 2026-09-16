@@ -25,6 +25,7 @@ public class GeminiApiClient {
 
     // LLM 백엔드: OpenRouter (OpenAI 호환). 과거 GeminiModelRouter 대체.
     private final OpenRouterModelRouter router;
+    private final com.waynai.demo.util.JsonSchemaLoader schemaLoader;
 
     public Mono<String> generateText(String prompt) {
         return router.generateText(prompt)
@@ -59,7 +60,16 @@ public class GeminiApiClient {
      * 구조화 여행 계획 생성 시 체감 지연을 줄이기 위해 사용.
      */
     public reactor.core.publisher.Flux<String> generateJsonStream(String prompt, Consumer<String> onModelSelected) {
-        return router.streamText(prompt, onModelSelected, true)
+        return generateJsonStream(prompt, onModelSelected, null);
+    }
+
+    /**
+     * 스키마를 지정한 스트리밍 호출(구조화 출력). {@code schemaName} 이 null 이거나 스키마 파일이
+     * 없으면 기존 JSON 모드(json_object)로 내려간다.
+     */
+    public reactor.core.publisher.Flux<String> generateJsonStream(String prompt, Consumer<String> onModelSelected,
+                                                                  String schemaName) {
+        return router.streamText(prompt, onModelSelected, responseFormat(schemaName))
                 .onErrorResume(e -> {
                     log.error("LLM(JSON stream) 호출 전체 실패: {}", e.getMessage());
                     return reactor.core.publisher.Flux.empty();
@@ -67,11 +77,22 @@ public class GeminiApiClient {
     }
 
     public Mono<String> generateJson(String prompt, Consumer<String> onModelSelected) {
-        return router.generateText(prompt, onModelSelected, true)
+        return generateJson(prompt, onModelSelected, null);
+    }
+
+    /** 스키마를 지정한 비스트리밍 JSON 호출(구조화 출력). */
+    public Mono<String> generateJson(String prompt, Consumer<String> onModelSelected, String schemaName) {
+        return router.generateText(prompt, onModelSelected, responseFormat(schemaName))
                 .onErrorResume(e -> {
                     log.error("LLM(JSON) 호출 전체 실패: {}", e.getMessage());
                     return Mono.just("{\"error\":\"AI 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.\",\"status\":\"error\"}");
                 });
+    }
+
+    /** 스키마 이름 → 응답 형식. 스키마를 못 찾으면 로더가 warn 을 남기고 JSON 모드로 떨어진다. */
+    private OpenRouterModelRouter.ResponseFormat responseFormat(String schemaName) {
+        if (schemaName == null || schemaName.isBlank()) return OpenRouterModelRouter.ResponseFormat.JSON;
+        return OpenRouterModelRouter.ResponseFormat.jsonSchema(schemaName, schemaLoader.load(schemaName));
     }
 
     public Flux<String> generateTextStream(String prompt) {

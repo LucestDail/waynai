@@ -1,0 +1,122 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type", "destination", "duration", "days", "summary", "theme",
+    "transportation", "accommodation", "itinerary", "budget",
+    "estimatedBudgetKrw", "tips", "weatherInfo", "localInfo",
+    "packingList", "costBreakdown"
+  ],
+  "properties": {
+    "type": { "type": "string" },
+    "destination": { "type": "string" },
+    "duration": { "type": "string" },
+    "days": { "type": "integer" },
+    "summary": { "type": "string" },
+    "theme": { "type": "string" },
+    "transportation": { "type": "string" },
+    "accommodation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "area", "type", "pricePerNightKrw", "bookingUrl"],
+      "properties": {
+        "name": { "type": "string" },
+        "area": { "type": "string" },
+        "type": { "type": "string" },
+        "pricePerNightKrw": { "type": ["integer", "null"] },
+        "bookingUrl": { "type": "string" }
+      }
+    },
+    "itinerary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "day", "title", "overview", "spots", "transportation", "meals",
+          "accommodation", "weather", "estimatedCost", "costItems", "tips"
+        ],
+        "properties": {
+          "day": { "type": "integer" },
+          "title": { "type": "string" },
+          "overview": { "type": "string" },
+          "spots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name", "visitTime", "durationMin", "activity",
+                "notes", "address", "latitude", "longitude"
+              ],
+              "properties": {
+                "name": { "type": "string" },
+                "visitTime": { "type": "string" },
+                "durationMin": { "type": ["integer", "null"] },
+                "activity": { "type": "string" },
+                "notes": { "type": "string" },
+                "address": { "type": "string" },
+                "latitude": { "type": ["number", "null"] },
+                "longitude": { "type": ["number", "null"] }
+              }
+            }
+          },
+          "transportation": { "type": "string" },
+          "meals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "name", "location", "menu", "priceKrw"],
+              "properties": {
+                "type": { "type": "string" },
+                "name": { "type": "string" },
+                "location": { "type": "string" },
+                "menu": { "type": "string" },
+                "priceKrw": { "type": ["integer", "null"] }
+              }
+            }
+          },
+          "accommodation": { "type": "string" },
+          "weather": { "type": "string" },
+          "estimatedCost": { "type": "string" },
+          "costItems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "krw"],
+              "properties": {
+                "label": { "type": "string" },
+                "krw": { "type": ["integer", "null"] }
+              }
+            }
+          },
+          "tips": { "type": "string" }
+        }
+      }
+    },
+    "budget": { "type": "string" },
+    "estimatedBudgetKrw": { "type": ["integer", "null"] },
+    "tips": { "type": "array", "items": { "type": "string" } },
+    "weatherInfo": { "type": "string" },
+    "localInfo": { "type": "string" },
+    "packingList": { "type": "array", "items": { "type": "string" } },
+    "costBreakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flightsKrw", "accommodationKrw", "foodKrw",
+        "transportKrw", "activitiesKrw", "etcKrw"
+      ],
+      "properties": {
+        "flightsKrw": { "type": ["integer", "null"] },
+        "accommodationKrw": { "type": ["integer", "null"] },
+        "foodKrw": { "type": ["integer", "null"] },
+        "transportKrw": { "type": ["integer", "null"] },
+        "activitiesKrw": { "type": ["integer", "null"] },
+        "etcKrw": { "type": ["integer", "null"] }
+      }
+    }
+  }
+}

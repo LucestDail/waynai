@@ -56,6 +56,32 @@ export interface CostItem {
   krw?: number;
 }
 
+/** 절감 제안 한 건 (서버가 규칙 기반으로 계산 — LLM 아님). */
+export interface BudgetSaving {
+  category?: string;
+  title?: string;
+  detail?: string;
+  savingKrw?: number;
+  /** 산출 근거. 숫자를 그대로 믿지 않도록 함께 보여준다. */
+  basis?: string;
+}
+
+/** 예산 대비 경비 비교 + 절감 제안. */
+export interface BudgetAssessment {
+  status?: 'WITHIN' | 'TIGHT' | 'OVER' | 'UNKNOWN';
+  budgetKrw?: number;
+  perPerson?: boolean;
+  budgetBasis?: string;
+  estimatedKrw?: number;
+  diffKrw?: number;
+  ratio?: number;
+  message?: string;
+  savings?: BudgetSaving[];
+  totalSavingKrw?: number;
+  projectedKrw?: number;
+  stillOver?: boolean;
+}
+
 export interface FlightOffer {
   origin?: string;
   destination?: string;
@@ -119,6 +145,7 @@ export interface TravelPlan {
     activitiesKrw?: number;
     etcKrw?: number;
   };
+  budgetAssessment?: BudgetAssessment;
   warnings?: string[];
 }
 
@@ -135,6 +162,8 @@ export interface StreamProgress {
   intent: IntentPayload | null;
   sources: { tour: SourceSummary | null; naver: SourceSummary | null; web: SourceSummary | null };
   model: string | null;
+  /** 예산 비교 결과. plan 파싱이 실패해도 이 값은 남는다(plan 안에도 같은 것이 들어 있다). */
+  budget: BudgetAssessment | null;
 }
 
 export interface StreamState {
@@ -156,6 +185,7 @@ const createInitialProgress = (): StreamProgress => ({
   intent: null,
   sources: { tour: null, naver: null, web: null },
   model: null,
+  budget: null,
 });
 
 const STAGE_LABEL: Record<string, TravelStage> = {
@@ -396,6 +426,14 @@ export const useStreamStore = defineStore('stream', () => {
         state.progress.stage = 'completed';
         state.isComplete = true;
         pushMessage('done', event.message ?? '여행 계획 생성 완료', 'completed');
+        break;
+      }
+      case 'budget': {
+        // 예산 대비 비교 + 절감 제안. plan 안에도 같은 값이 실리지만, 구조화 파싱이 실패한
+        // 회차에서도 보여줄 수 있도록 여기에 따로 담는다.
+        const a = event.payload as BudgetAssessment | undefined;
+        if (a && typeof a === 'object') state.progress.budget = a;
+        pushMessage('budget', event.message, event.stage);
         break;
       }
       case 'error': {

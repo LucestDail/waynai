@@ -10,6 +10,7 @@ import com.waynai.demo.dto.TouristSpotDto;
 import com.waynai.demo.dto.TouristSpotResponseDto;
 import com.waynai.demo.dto.TravelEvent;
 import com.waynai.demo.dto.TravelPlanDto;
+import com.waynai.demo.util.BudgetParser;
 import com.waynai.demo.util.PromptLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,14 @@ public class TravelOrchestratorService {
     private final com.waynai.demo.client.HotelCrawlClient hotelCrawlClient;
     private final com.waynai.demo.client.GeocodingClient geocodingClient;
     private final com.waynai.demo.client.DaeroClient daeroClient;
+    private final BudgetAdvisorService budgetAdvisorService;
+
+    /**
+     * 구조화 출력 스키마 이름 ({@code resources/schema/travel_plan.schema.json}).
+     * 스키마 파일이 없거나 엔드포인트가 거부하면 라우터가 json_object 로 내려간다(warn 을 남긴다).
+     */
+    // public: 검사가 복사본이 아니라 '실제로 쓰이는 값' 을 보게 하려고 공개한다.
+    public static final String PLAN_SCHEMA = "travel_plan";
 
     /** 국내 공항 IATA (여기에 없는 코드로 해석되면 해외로 판정). */
     private static final java.util.Set<String> KOREAN_AIRPORTS = java.util.Set.of(
@@ -75,17 +84,25 @@ public class TravelOrchestratorService {
      */
     public Flux<TravelEvent> generatePlanStream(String query, String origin,
                                                 String departDate, String returnDate) {
+        return generatePlanStream(query, origin, departDate, returnDate, null);
+    }
+
+    /**
+     * @param budgetKrw 예산(원). null 이면 질의 문장에서 뽑는다({@link BudgetParser}).
+     */
+    public Flux<TravelEvent> generatePlanStream(String query, String origin,
+                                                String departDate, String returnDate, Integer budgetKrw) {
         return Flux.defer(() -> {
             Sinks.Many<TravelEvent> sink = Sinks.many().unicast().onBackpressureBuffer();
             // 별도 스레드에서 파이프라인 실행. 각 단계에서 sink 로 이벤트 push.
-            CompletableFuture.runAsync(() -> runPipeline(query, origin, departDate, returnDate, sink),
+            CompletableFuture.runAsync(() -> runPipeline(query, origin, departDate, returnDate, budgetKrw, sink),
                     Schedulers.boundedElastic()::schedule);
             return sink.asFlux();
         });
     }
 
     private void runPipeline(String query, String origin, String departDate, String returnDate,
-                             Sinks.Many<TravelEvent> sink) {
+                             Integer budgetKrw, Sinks.Many<TravelEvent> sink) {
         try {
             emit(sink, TravelEvent.builder()
                     .type("stage").stage("analyzing")
@@ -208,7 +225,7 @@ public class TravelOrchestratorService {
                                 .type("model").stage("generating")
                                 .message("AI 모델을 선택했습니다: " + model)
                                 .payload(Map.of("model", model))
-                                .build()))
+                                .build()), PLAN_SCHEMA)
                         .doOnNext(delta -> {
                             full.append(delta);
                             emit(sink, TravelEvent.builder()
@@ -223,7 +240,7 @@ public class TravelOrchestratorService {
                 if (plan == null) {
                     log.warn("[orchestrator] 스트리밍 JSON 파싱 실패 → 비스트리밍 재생성 1회 시도");
                     try {
-                        String retry = geminiApiClient.generateJson(prompt).block();
+                        String retry = geminiApiClient.generateJson(prompt, null, PLAN_SCHEMA).block();
                         plan = tryParsePlan(retry);
                         if (plan != null) log.info("[orchestrator] 재생성으로 파싱 성공");
                     } catch (Exception re) {
@@ -255,7 +272,9 @@ public class TravelOrchestratorService {
             }
             // 비용을 규칙 기반으로 현실화 (LLM 추측 대신 항공 실값 + 숙소×박수 + per-diem).
             if (plan != null) {
-                computeCosts(plan, intent, flights);
+                BudgetAdvisorService.TripCost tripCost = computeCosts(plan, intent, flights);
+                // 예산 대비 비교 + 절감 제안. 산술만 하므로 LLM 호출·외부 요청이 없다(지연 0).
+                assessBudget(plan, tripCost, query, budgetKrw, sink);
             }
             // 좌표가 있으면 실제 이동시간을 계산해 각 날짜 교통 문구에 반영 (ORS 키 있을 때만).
             if (plan != null && routingApiClient.isEnabled()) {
@@ -977,7 +996,8 @@ public class TravelOrchestratorService {
      * 비용을 규칙 기반으로 현실화. 항공(실값)×인원 + 숙소(1박가×박수×객실) + 현지 per-diem(식비/교통/입장).
      * LLM 이 채운 costBreakdown(0/비현실)을 덮어쓰고 estimatedBudget=합계로 정합.
      */
-    private void computeCosts(TravelPlanDto plan, IntentAnalysisDto intent, List<FlightOfferDto> flights) {
+    private BudgetAdvisorService.TripCost computeCosts(TravelPlanDto plan, IntentAnalysisDto intent,
+                                                       List<FlightOfferDto> flights) {
         try {
             int days = plan.getDays() != null && plan.getDays() > 0 ? plan.getDays()
                     : (plan.getItinerary() != null ? Math.max(1, plan.getItinerary().size()) : 1);
@@ -1048,8 +1068,51 @@ public class TravelOrchestratorService {
                 }
             }
             log.info("[orchestrator] 비용 재계산: 총 {}원 ({}인, {}박, 물가계수 {})", total, party, nights, coef);
+            // 예산 비교·절감 제안이 총액과 같은 전제(인원·박수·per-diem) 위에 서도록 그대로 넘긴다.
+            boolean domestic = intent == null || !Boolean.TRUE.equals(intent.getInternational());
+            return new BudgetAdvisorService.TripCost(days, nights, party, rooms, perNight, coef, domestic,
+                    foodPerDay, activPerDay, localTransDay);
         } catch (Exception e) {
             log.warn("[orchestrator] 비용 계산 실패 (무시): {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 예산 대비 경비 비교 + 절감 제안을 계획에 붙이고 SSE {@code budget} 이벤트로 알린다.
+     *
+     * <p>예산은 명시 파라미터를 우선하고, 없으면 질의 문장에서 뽑는다("예산 100만원", "1인당 50만원").
+     * 문장에서 못 찾아도 절감 제안은 낸다(status=UNKNOWN) — 비교만 못 할 뿐 줄일 항목은 같기 때문이다.
+     *
+     * <p>실패해도 계획 생성은 계속한다. 다만 <b>조용히 넘어가지 않는다</b> — 붙지 않았으면 이유가 로그에 남는다.
+     */
+    private void assessBudget(TravelPlanDto plan, BudgetAdvisorService.TripCost tripCost,
+                              String query, Integer budgetKrw, Sinks.Many<TravelEvent> sink) {
+        try {
+            if (tripCost == null) {
+                log.warn("[orchestrator] 비용 전제(TripCost)가 없어 예산 비교를 건너뜁니다.");
+                return;
+            }
+            BudgetParser.Budget budget = budgetKrw != null && budgetKrw > 0
+                    ? new BudgetParser.Budget(budgetKrw, false, String.format("%,d원", budgetKrw))
+                    : BudgetParser.parse(query);
+            var assessment = budgetAdvisorService.assess(plan, tripCost, budget);
+            if (assessment == null) {
+                log.warn("[orchestrator] 예산 평가 결과가 없습니다(총액 미산출).");
+                return;
+            }
+            plan.setBudgetAssessment(assessment);
+            emit(sink, TravelEvent.builder()
+                    .type("budget").stage("generating")
+                    .message(assessment.getMessage())
+                    .payload(assessment)
+                    .build());
+            log.info("[orchestrator] 예산 평가: status={}, 예산={}, 예상={}, 절감제안={}건",
+                    assessment.getStatus(), assessment.getBudgetKrw(),
+                    assessment.getEstimatedKrw(),
+                    assessment.getSavings() == null ? 0 : assessment.getSavings().size());
+        } catch (Exception e) {
+            log.warn("[orchestrator] 예산 평가 실패 (무시): {}", e.getMessage());
         }
     }
 

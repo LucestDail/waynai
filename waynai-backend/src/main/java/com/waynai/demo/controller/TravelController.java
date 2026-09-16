@@ -57,11 +57,12 @@ public class TravelController {
             @RequestParam String query,
             @RequestParam(required = false) String origin,
             @RequestParam(required = false) String departDate,
-            @RequestParam(required = false) String returnDate) {
-        log.info("[sse] 여행 계획 스트림 요청: {} (origin={}, depart={}, return={})",
-                query, origin, departDate, returnDate);
+            @RequestParam(required = false) String returnDate,
+            @RequestParam(required = false) Integer budgetKrw) {
+        log.info("[sse] 여행 계획 스트림 요청: {} (origin={}, depart={}, return={}, budget={})",
+                query, origin, departDate, returnDate, budgetKrw);
         AtomicLong seq = new AtomicLong(0);
-        return travelOrchestratorService.generatePlanStream(query, origin, departDate, returnDate)
+        return travelOrchestratorService.generatePlanStream(query, origin, departDate, returnDate, budgetKrw)
                 .map(evt -> ServerSentEvent.<TravelEvent>builder()
                         .id(String.valueOf(seq.incrementAndGet()))
                         .event(evt.getType() != null ? evt.getType() : "message")
@@ -77,10 +78,11 @@ public class TravelController {
     @PostMapping(value = "/plan/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<TravelEvent>> generateTravelPlanStreamPost(@RequestBody StreamRequest req) {
         String query = req.getQuery() != null ? req.getQuery() : "";
-        log.info("[sse] 여행 계획 스트림 요청(POST): len={} (origin={}, depart={}, return={})",
-                query.length(), req.getOrigin(), req.getDepartDate(), req.getReturnDate());
+        log.info("[sse] 여행 계획 스트림 요청(POST): len={} (origin={}, depart={}, return={}, budget={})",
+                query.length(), req.getOrigin(), req.getDepartDate(), req.getReturnDate(), req.getBudgetKrw());
         AtomicLong seq = new AtomicLong(0);
-        return travelOrchestratorService.generatePlanStream(query, req.getOrigin(), req.getDepartDate(), req.getReturnDate())
+        return travelOrchestratorService.generatePlanStream(query, req.getOrigin(), req.getDepartDate(),
+                        req.getReturnDate(), req.getBudgetKrw())
                 .map(evt -> ServerSentEvent.<TravelEvent>builder()
                         .id(String.valueOf(seq.incrementAndGet()))
                         .event(evt.getType() != null ? evt.getType() : "message")
@@ -96,6 +98,10 @@ public class TravelController {
         private String origin;
         private String departDate;
         private String returnDate;
+        /** 예산(원). 생략하면 질의 문장에서 뽑는다("예산 100만원"). */
+        private Integer budgetKrw;
+        public Integer getBudgetKrw() { return budgetKrw; }
+        public void setBudgetKrw(Integer budgetKrw) { this.budgetKrw = budgetKrw; }
         public String getQuery() { return query; }
         public void setQuery(String query) { this.query = query; }
         public String getOrigin() { return origin; }

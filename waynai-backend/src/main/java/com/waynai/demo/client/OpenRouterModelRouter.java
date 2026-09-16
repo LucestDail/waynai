@@ -73,12 +73,56 @@ public class OpenRouterModelRouter {
     @Value("${gemini.tls.insecure:false}")
     private boolean tlsInsecure;
 
+    /**
+     * 구조화 출력(response_format=json_schema) 사용 여부.
+     * 끄면 기존 {@code json_object} 로만 동작한다(엔드포인트가 스키마를 거부할 때의 수동 탈출구).
+     */
+    @Value("${openrouter.structured-outputs.enabled:true}")
+    private boolean structuredOutputsEnabled;
+
     private List<String> modelChain = Collections.emptyList();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private volatile WebClient webClient;
 
+    /**
+     * 엔드포인트가 스키마를 거부한다는 것이 <b>실증된</b> 뒤 켜진다.
+     * (스키마를 뺀 재시도가 성공 = 스키마가 원인이었다는 뜻)
+     *
+     * <p>여기가 켜지면 이후 요청은 스키마 없이 나간다. 매 요청마다 실패 호출을
+     * 한 번씩 더 태우지 않기 위한 것이다.
+     */
+    private volatile boolean schemaRejectedByEndpoint = false;
+
     private final Map<String, Long> cooldownUntilMs = new ConcurrentHashMap<>();
     private static final long COOLDOWN_MS = 60_000L;
+
+    /**
+     * 응답 형식 지정.
+     *
+     * @param jsonMode   true 면 최소한 구문상 유효한 JSON 을 강제({@code response_format=json_object})
+     * @param schemaName 구조화 출력 이름 (OpenRouter/OpenAI 규격상 필수). schema 가 있을 때만 의미.
+     * @param schema     JSON Schema. null 이면 스키마 없이 jsonMode 만 적용.
+     */
+    public record ResponseFormat(boolean jsonMode, String schemaName, JsonNode schema) {
+
+        public static final ResponseFormat TEXT = new ResponseFormat(false, null, null);
+        public static final ResponseFormat JSON = new ResponseFormat(true, null, null);
+
+        /** 스키마가 null 이면 조용히 JSON 모드로 떨어진다(호출부가 매번 분기하지 않도록). */
+        public static ResponseFormat jsonSchema(String name, JsonNode schema) {
+            if (schema == null || name == null || name.isBlank()) return JSON;
+            return new ResponseFormat(true, name, schema);
+        }
+
+        public boolean hasSchema() {
+            return schema != null && schemaName != null && !schemaName.isBlank();
+        }
+
+        /** 스키마만 떼어낸 형식. 엔드포인트가 스키마를 거부했을 때의 강등 대상. */
+        public ResponseFormat withoutSchema() {
+            return jsonMode ? JSON : TEXT;
+        }
+    }
 
     @PostConstruct
     public void init() {
@@ -143,7 +187,16 @@ public class OpenRouterModelRouter {
      * 구문상 유효한 JSON 만 반환하도록 강제한다. (구조화 여행 계획 전용)
      */
     public Mono<String> generateText(String prompt, Consumer<String> onModelSelected, boolean jsonMode) {
-        return Mono.fromCallable(() -> invokeWithFallback(prompt, onModelSelected, jsonMode))
+        return generateText(prompt, onModelSelected,
+                jsonMode ? ResponseFormat.JSON : ResponseFormat.TEXT);
+    }
+
+    /**
+     * 응답 형식을 직접 지정하는 호출. {@link ResponseFormat#jsonSchema} 를 넘기면
+     * OpenRouter 구조화 출력(response_format=json_schema, strict)을 사용한다.
+     */
+    public Mono<String> generateText(String prompt, Consumer<String> onModelSelected, ResponseFormat format) {
+        return Mono.fromCallable(() -> invokeWithFallback(prompt, onModelSelected, format))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
@@ -159,22 +212,31 @@ public class OpenRouterModelRouter {
      * @return content 델타 문자열의 Flux (완결 시 onComplete)
      */
     public Flux<String> streamText(String prompt, Consumer<String> onModelSelected, boolean jsonMode) {
+        return streamText(prompt, onModelSelected,
+                jsonMode ? ResponseFormat.JSON : ResponseFormat.TEXT);
+    }
+
+    /** 응답 형식을 직접 지정하는 스트리밍 호출. */
+    public Flux<String> streamText(String prompt, Consumer<String> onModelSelected, ResponseFormat format) {
         if (apiKey == null || apiKey.isBlank()) {
             return Flux.error(new IllegalStateException("OPENROUTER_API_KEY 가 설정되지 않았습니다."));
         }
-        return streamWithFallback(prompt, 0, onModelSelected, jsonMode);
+        return streamWithFallback(prompt, 0, onModelSelected, format);
     }
 
-    private Flux<String> streamWithFallback(String prompt, int idx, Consumer<String> onModelSelected, boolean jsonMode) {
+    private Flux<String> streamWithFallback(String prompt, int idx, Consumer<String> onModelSelected,
+                                            ResponseFormat format) {
         if (idx >= modelChain.size()) {
             return Flux.error(new RuntimeException("모든 OpenRouter 모델 스트리밍 실패"));
         }
         String model = modelChain.get(idx);
+        ResponseFormat eff = effectiveFormat(format);
         java.util.concurrent.atomic.AtomicBoolean announced = new java.util.concurrent.atomic.AtomicBoolean(false);
-        return streamOne(model, prompt, jsonMode)
+        return streamOne(model, prompt, eff)
                 .doOnNext(delta -> {
                     if (announced.compareAndSet(false, true)) {
-                        log.info("[openrouter] 스트리밍 시작: model={}", model);
+                        log.info("[openrouter] 스트리밍 시작: model={}, schema={}", model,
+                                eff.hasSchema() ? eff.schemaName() : "없음");
                         if (onModelSelected != null) {
                             try { onModelSelected.accept(model); } catch (Exception ignore) { }
                         }
@@ -186,20 +248,20 @@ public class OpenRouterModelRouter {
                         log.warn("[openrouter] 스트리밍 중단(부분 수신): model={}, {}", model, e.getMessage());
                         return Flux.empty();
                     }
+                    // 스키마를 거부당한 모양이면 같은 모델을 스키마 없이 한 번 더 — 모델을 건너뛰기 전에.
+                    if (eff.hasSchema() && looksLikeSchemaRejection(e.getMessage())) {
+                        log.warn("[openrouter] 스트리밍에서 구조화 출력이 거부됨(model={}): {} → 스키마 없이 재시도",
+                                model, e.getMessage());
+                        markSchemaRejected();
+                        return streamWithFallback(prompt, idx, onModelSelected, eff.withoutSchema());
+                    }
                     log.warn("[hot-swap:stream] {} 실패 → 다음 모델: {}", model, e.getMessage());
-                    return streamWithFallback(prompt, idx + 1, onModelSelected, jsonMode);
+                    return streamWithFallback(prompt, idx + 1, onModelSelected, format);
                 });
     }
 
-    private Flux<String> streamOne(String model, String prompt, boolean jsonMode) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("model", model);
-        body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-        body.put("stream", true);
-        applyProvider(body);
-        if (jsonMode) {
-            body.put("response_format", Map.of("type", "json_object"));
-        }
+    private Flux<String> streamOne(String model, String prompt, ResponseFormat format) {
+        Map<String, Object> body = buildRequestBody(model, prompt, format, true);
         return webClient()
                 .post()
                 .uri("/chat/completions")
@@ -217,11 +279,84 @@ public class OpenRouterModelRouter {
                 .filter(s -> s != null && !s.isEmpty());
     }
 
-    /** OpenRouter 프로바이더 라우팅: 지정된 정렬 기준(기본 throughput)으로 가장 빠른 공급자 선호. */
-    private void applyProvider(Map<String, Object> body) {
-        if (providerSort != null && !providerSort.isBlank()) {
-            body.put("provider", Map.of("sort", providerSort));
+    /**
+     * 요청 바디 구성. 순수 함수라 테스트에서 직접 검증한다(스키마가 실제로 실리는지는
+     * 눈으로 확인할 수 없고, 빠져도 json_object 로 조용히 동작하기 때문).
+     */
+    Map<String, Object> buildRequestBody(String model, String prompt, ResponseFormat format, boolean stream) {
+        ResponseFormat eff = effectiveFormat(format);
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
+        body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+        if (stream) body.put("stream", true);
+        applyProvider(body, eff.hasSchema());
+        if (eff.hasSchema()) {
+            // OpenRouter/OpenAI 구조화 출력. strict=true 라 스키마에 없는 키는 나오지 않는다.
+            body.put("response_format", Map.of(
+                    "type", "json_schema",
+                    "json_schema", Map.of(
+                            "name", eff.schemaName(),
+                            "strict", true,
+                            "schema", eff.schema())));
+        } else if (eff.jsonMode()) {
+            // 구문상 유효한 JSON 만 강제(키·타입은 프롬프트에 의존).
+            body.put("response_format", Map.of("type", "json_object"));
         }
+        return body;
+    }
+
+    /** 설정/실증된 거부를 반영한 실제 응답 형식. */
+    private ResponseFormat effectiveFormat(ResponseFormat format) {
+        ResponseFormat f = format == null ? ResponseFormat.TEXT : format;
+        if (f.hasSchema() && (!structuredOutputsEnabled || schemaRejectedByEndpoint)) {
+            return f.withoutSchema();
+        }
+        return f;
+    }
+
+    /**
+     * OpenRouter 프로바이더 라우팅: 지정된 정렬 기준(기본 throughput)으로 가장 빠른 공급자 선호.
+     *
+     * <p>스키마를 쓸 때는 {@code require_parameters=true} 를 함께 보낸다 — 구조화 출력을
+     * 지원하지 않는 공급자로 라우팅되면 스키마가 <b>조용히 무시</b>되기 때문이다.
+     */
+    private void applyProvider(Map<String, Object> body, boolean requireParameters) {
+        boolean hasSort = providerSort != null && !providerSort.isBlank();
+        if (!hasSort && !requireParameters) return;
+        Map<String, Object> provider = new HashMap<>();
+        if (hasSort) provider.put("sort", providerSort);
+        if (requireParameters) provider.put("require_parameters", true);
+        body.put("provider", provider);
+    }
+
+    /**
+     * 스키마 거부로 보이는 오류인지 판정. 엔드포인트(OpenRouter 직결 / osh-ai-gateway 경유)마다
+     * 문구가 다르므로 상태코드 + 키워드로 본다.
+     *
+     * <p>지나치게 넓게 잡으면 멀쩡한 구조화 출력을 영영 끄게 되므로 <b>4xx/501 + 응답형식 관련 낱말</b>
+     * 둘 다 있어야 참으로 본다. 타임아웃·5xx·쿼터는 여기 해당하지 않는다(모델 폴백이 처리).
+     */
+    static boolean looksLikeSchemaRejection(String message) {
+        if (message == null) return false;
+        String m = message.toLowerCase();
+        boolean clientError = m.contains("http 400") || m.contains("http 404") || m.contains("http 405")
+                || m.contains("http 415") || m.contains("http 422") || m.contains("http 501");
+        if (!clientError) return false;
+        return m.contains("response_format") || m.contains("json_schema")
+                || m.contains("structured output") || m.contains("structured_outputs");
+    }
+
+    private void markSchemaRejected() {
+        if (!schemaRejectedByEndpoint) {
+            schemaRejectedByEndpoint = true;
+            log.warn("[openrouter] 이 엔드포인트({})는 구조화 출력(json_schema)을 받지 않습니다. "
+                    + "이후 요청은 json_object 로 나갑니다.", baseUrl);
+        }
+    }
+
+    /** 테스트·진단용: 구조화 출력이 실제로 쓰이고 있는지. */
+    public boolean isStructuredOutputActive() {
+        return structuredOutputsEnabled && !schemaRejectedByEndpoint;
     }
 
     /** OpenRouter 스트리밍 SSE data(JSON)에서 choices[0].delta.content 추출. [DONE] 이면 null. */
@@ -239,7 +374,7 @@ public class OpenRouterModelRouter {
         return null;
     }
 
-    private String invokeWithFallback(String prompt, Consumer<String> onModelSelected, boolean jsonMode) {
+    private String invokeWithFallback(String prompt, Consumer<String> onModelSelected, ResponseFormat format) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("OPENROUTER_API_KEY 가 설정되지 않았습니다.");
         }
@@ -253,8 +388,22 @@ public class OpenRouterModelRouter {
             }
             for (int attempt = 0; attempt <= retryPerModel; attempt++) {
                 try {
-                    log.info("[openrouter] 호출 시도: model={}, attempt={}, jsonMode={}, promptLen={}", model, attempt, jsonMode, prompt.length());
-                    String text = callOnce(model, prompt, jsonMode);
+                    ResponseFormat eff = effectiveFormat(format);
+                    log.info("[openrouter] 호출 시도: model={}, attempt={}, jsonMode={}, schema={}, promptLen={}",
+                            model, attempt, eff.jsonMode(),
+                            eff.hasSchema() ? eff.schemaName() : "없음", prompt.length());
+                    String text;
+                    try {
+                        text = callOnce(model, prompt, eff);
+                    } catch (Exception callErr) {
+                        // 스키마 거부로 보이면 같은 모델을 스키마 없이 한 번 더 — 성공하면 스키마가 원인이었다는
+                        // 실증이므로 이후 요청은 json_object 로 보낸다. 실패하면 원 예외로 계속(모델 폴백).
+                        if (!eff.hasSchema() || !looksLikeSchemaRejection(callErr.getMessage())) throw callErr;
+                        log.warn("[openrouter] 구조화 출력이 거부됨(model={}): {} → 스키마 없이 재시도",
+                                model, callErr.getMessage());
+                        text = callOnce(model, prompt, eff.withoutSchema());
+                        markSchemaRejected();
+                    }
                     if (text == null || text.isBlank()) {
                         throw new RuntimeException("빈 응답");
                     }
@@ -281,15 +430,8 @@ public class OpenRouterModelRouter {
         throw new RuntimeException("모든 OpenRouter 모델 호출 실패: " + (last != null ? last.getMessage() : "unknown"), last);
     }
 
-    private String callOnce(String model, String prompt, boolean jsonMode) throws Exception {
-        Map<String, Object> body = new HashMap<>();
-        body.put("model", model);
-        body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-        applyProvider(body);
-        if (jsonMode) {
-            // OpenRouter/OpenAI JSON 모드: 구문상 유효한 JSON 만 반환하도록 강제.
-            body.put("response_format", Map.of("type", "json_object"));
-        }
+    private String callOnce(String model, String prompt, ResponseFormat format) throws Exception {
+        Map<String, Object> body = buildRequestBody(model, prompt, format, false);
 
         String resp = webClient()
                 .post()

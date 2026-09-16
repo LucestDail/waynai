@@ -7,7 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AI 여행 플래너. **OpenRouter(OpenAI 호환) LLM** + 공공 API 기반 풀스택 웹앱(+ Flutter 모바일).
 > LLM 백엔드는 2026-07 Gemini → OpenRouter 로 전환됨. 라우터: `client/OpenRouterModelRouter.java`(핫스왑), 어댑터: `client/GeminiApiClient.java`(이름만 유지). 설정: `.env` 의 `OPENROUTER_API_KEY` / `OPENROUTER_MODEL_CHAIN`.
 > - 모델 체인(저가): `deepseek/deepseek-v3.2 → deepseek/deepseek-chat → z-ai/glm-4.7-flash`. 재시도 0(느린 모델 즉시 핫스왑), 타임아웃 120초(전체 일정 JSON 생성이 ~60초 걸림).
-> - **JSON 모드**: 구조화 플랜/의도분석은 `generateJson()`(response_format=json_object)으로 유효 JSON 강제. 채팅 등 자유 텍스트는 `generateText()`.
+> - **JSON 모드**: 의도분석 등은 `generateJson()`(response_format=json_object)으로 유효 JSON 강제. 채팅 등 자유 텍스트는 `generateText()`.
+> - **구조화 출력(2026-09-16)**: 단일 도시 계획 생성은 한 단계 위인 **`response_format=json_schema`(strict)** 를 쓴다. 스키마=`resources/schema/travel_plan.schema.json`, 이름 상수=`TravelOrchestratorService.PLAN_SCHEMA`. `json_object` 는 "구문상 JSON" 만 보장하고 키·타입은 프롬프트 문구에 기댔다.
+>   - 실측: 모델 체인 3종 모두 OpenRouter 카탈로그에 `structured_outputs` 선언 + 실제 호출(일반·스트리밍) 스키마대로 반환.
+>   - ⚠️ **osh-ai-gateway 경유는 미측정**(`OPENROUTER_BASE_URL` 로 오버라이드하는 경로). 거부당하면 라우터가 **스키마 없는 재시도로 실증한 뒤** `json_object` 로 강등하고 `warn` 을 남긴다. 수동 차단 = `OPENROUTER_STRUCTURED_OUTPUTS=false`.
+>   - ⚠️ 권역분할(segment)·메타 생성 경로는 스키마 미적용(출력 모양이 다르다).
 > - **국내/해외 분기**(2026-07): intent 분석이 `international`/`destination` 판정 → 해외면 한국관광공사 RAG 스킵하고 LLM 지식+블로그로 구성. `IntentAnalysisDto`, `intent_analysis.txt`, `TravelOrchestratorService.safeCollectTour/safeCollectFlights/buildStructuredPrompt` 참조.
 
 - `waynai-backend/` — Java 17, Spring Boot 3.2, **WebFlux(SSE)**. Maven.
@@ -32,7 +36,9 @@ AI 여행 플래너. **OpenRouter(OpenAI 호환) LLM** + 공공 API 기반 풀�
  → JSON 파싱 → TravelPlanDto → SSE(TravelEvent) 스트림
 ```
 - 엔드포인트: `GET /api/travel/plan/stream`(SSE), `POST /api/travel/plan/structured`(JSON), `GET /api/travel/plan`(text).
-- SSE 이벤트 타입: `stage / intent / sources.tour / sources.naver / model / token / plan / done / error`.
+  - 스트림은 `budgetKrw`(원) 옵션 파라미터를 받는다. 없으면 질의 문장에서 뽑는다(`BudgetParser`).
+- SSE 이벤트 타입: `stage / intent / sources.tour / sources.naver / model / token / partial / budget / plan / done / error`.
+- **예산 대비 비교·절감 제안(2026-09-16)**: `BudgetAdvisorService` — 계획에 `budgetAssessment` 로 붙고 `budget` 이벤트로도 나간다. **LLM 미사용**(계획 생성 경로에 동기로 끼므로 비용·지연이 그대로 더해진다). `computeCosts` 가 만든 항목별 금액에 산술만 한다.
 - 프론트 소비: `services/streamService.ts` → `stores/stream.ts` → `components/StreamResult.vue`(일별 타임라인).
 - **DB·로그인 없음**, 하지만 **계획은 서버에 보관된다**(2026-09-05 도입).
   - 소유자 구분은 **익명 토큰 하나**(`X-Owner-Token` 헤더). 서버는 **SHA-256 해시만** 저장해

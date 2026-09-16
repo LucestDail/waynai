@@ -65,6 +65,40 @@
         <span class="cost-note" v-if="plan.estimatedBudgetKrw && flights.length">현지 경비 + 항공권 포함</span>
       </div>
 
+      <!-- 예산 대비 비교 + 절감 제안 (서버가 규칙으로 계산 — AI 호출 없음) -->
+      <section v-if="budget" class="budget-block" :class="`budget-${(budget.status || 'UNKNOWN').toLowerCase()}`">
+        <div class="budget-head">
+          <span class="budget-badge">{{ budgetBadge }}</span>
+          <p class="budget-message">{{ budget.message }}</p>
+        </div>
+        <div v-if="budget.budgetKrw" class="budget-bars">
+          <div class="budget-row">
+            <span class="budget-row-label">내 예산</span>
+            <span class="budget-row-value">{{ budget.budgetKrw.toLocaleString('ko-KR') }}원</span>
+            <small v-if="budget.budgetBasis" class="budget-basis">{{ budget.budgetBasis }}</small>
+          </div>
+          <div class="budget-row">
+            <span class="budget-row-label">예상 경비</span>
+            <span class="budget-row-value">{{ (budget.estimatedKrw || 0).toLocaleString('ko-KR') }}원</span>
+          </div>
+          <div v-if="budget.totalSavingKrw" class="budget-row">
+            <span class="budget-row-label">제안 적용 시</span>
+            <span class="budget-row-value">{{ (budget.projectedKrw || 0).toLocaleString('ko-KR') }}원</span>
+            <small class="budget-basis">−{{ budget.totalSavingKrw.toLocaleString('ko-KR') }}원</small>
+          </div>
+        </div>
+        <ul v-if="budget.savings && budget.savings.length" class="budget-savings">
+          <li v-for="(s, i) in budget.savings" :key="i" class="saving-item">
+            <div class="saving-top">
+              <strong class="saving-title">{{ s.title }}</strong>
+              <span class="saving-amount">−{{ (s.savingKrw || 0).toLocaleString('ko-KR') }}원</span>
+            </div>
+            <p class="saving-detail">{{ s.detail }}</p>
+            <small v-if="s.basis" class="saving-basis">근거 · {{ s.basis }} (추정)</small>
+          </li>
+        </ul>
+      </section>
+
       <div class="plan-actions">
         <button @click="savePlan" class="action-button" :disabled="isSaved">
           <span>{{ isSaved ? '저장됨 ✓' : '내 여행에 저장' }}</span>
@@ -333,6 +367,19 @@ const costRows = computed(() => {
     { k: '기타', v: won(c.etcKrw) },
   ];
   return rows.filter((r) => r.v);
+});
+
+// 예산 대비 비교 + 절감 제안. 계획 안의 값을 우선하고, 구조화 파싱이 실패한 회차에는
+// budget 이벤트로 받아 둔 값을 쓴다(둘 다 서버가 규칙으로 계산한 같은 값이다).
+const budget = computed(() => streamState.plan?.budgetAssessment ?? streamState.progress.budget ?? null);
+
+const budgetBadge = computed(() => {
+  switch (budget.value?.status) {
+    case 'WITHIN': return '예산 안';
+    case 'TIGHT': return '빠듯함';
+    case 'OVER': return '예산 초과';
+    default: return '절감 제안';
+  }
 });
 
 // 생성 중 실시간 빌드업.
@@ -928,6 +975,7 @@ const showToast = (message: string) => {
   .plan-actions { padding: 0 1.25rem 1rem; }
   .flights-block { padding: 0 1.25rem; }
   .cost-summary { margin: 12px 1.25rem 0; }
+  .budget-block { margin: 12px 1.25rem 0; }
   .map-block { padding: 0 1.25rem 0.5rem; }
   .timeline { padding: 0 1.25rem 1.5rem; }
   .timeline::before { left: calc(1.25rem + 12px); }
@@ -981,6 +1029,39 @@ const showToast = (message: string) => {
 .cost-label { font-size: 0.82rem; color: #92400e; font-weight: 600; }
 .cost-value { font-size: 1.25rem; font-weight: 800; color: #b45309; }
 .cost-note { font-size: 0.75rem; color: #a16207; opacity: 0.85; }
+
+/* --- 예산 대비 비교 + 절감 제안 (2026-09) --- */
+.budget-block {
+  margin: 14px 2rem 0; padding: 14px 16px; border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08); background: rgba(0, 0, 0, 0.02);
+}
+.budget-within { background: rgba(5, 150, 105, 0.07); border-color: rgba(5, 150, 105, 0.25); }
+.budget-tight { background: rgba(217, 119, 6, 0.08); border-color: rgba(217, 119, 6, 0.28); }
+.budget-over { background: rgba(220, 38, 38, 0.07); border-color: rgba(220, 38, 38, 0.25); }
+.budget-head { display: flex; align-items: flex-start; gap: 10px; }
+.budget-badge {
+  flex-shrink: 0; font-size: 0.72rem; font-weight: 700; padding: 3px 9px;
+  border-radius: 999px; background: rgba(0, 0, 0, 0.07); color: #333;
+}
+.budget-over .budget-badge { background: rgba(220, 38, 38, 0.15); color: #b91c1c; }
+.budget-within .budget-badge { background: rgba(5, 150, 105, 0.15); color: #047857; }
+.budget-tight .budget-badge { background: rgba(217, 119, 6, 0.16); color: #b45309; }
+.budget-message { margin: 0; font-size: 0.88rem; line-height: 1.55; color: #333; }
+.budget-bars { margin-top: 10px; display: grid; gap: 4px; }
+.budget-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 0.82rem; }
+.budget-row-label { min-width: 72px; color: #666; }
+.budget-row-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+.budget-basis { color: #888; font-size: 0.72rem; }
+.budget-savings { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.saving-item {
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.65); border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.saving-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.saving-title { font-size: 0.85rem; }
+.saving-amount { font-size: 0.85rem; font-weight: 800; color: #047857; font-variant-numeric: tabular-nums; }
+.saving-detail { margin: 4px 0 0; font-size: 0.8rem; line-height: 1.5; color: #555; }
+.saving-basis { display: block; margin-top: 4px; font-size: 0.7rem; color: #999; }
 
 .map-block { margin-top: 1.25rem; padding: 0 2rem 0.5rem; }
 

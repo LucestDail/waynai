@@ -37,6 +37,7 @@ public class TravelPlanDto {
     private List<String> packingList;// 출발 전 준비물 체크리스트
     private String localInfo;        // 현지 상황(치안·교통·팁·주의사항 등)
     private CostBreakdown costBreakdown; // 항목별 예상 비용
+    private BudgetAssessmentDto budgetAssessment; // 예산 대비 비교 + 절감 제안 (규칙 기반, LLM 미사용)
     private List<String> warnings;   // 폴백/파싱 경고 등 시스템 메시지
 
     @Data
