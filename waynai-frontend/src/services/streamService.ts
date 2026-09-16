@@ -16,11 +16,11 @@ export interface TravelPlanStreamHandlers {
   onError: (error: Error) => void;
 }
 
-const DEFAULT_API_BASE = 'http://localhost:8080';
+import { API_BASE_URL as RESOLVED_API_BASE } from '../config/api';
 
 export class StreamService {
   private static instance: StreamService;
-  private readonly API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE;
+  private readonly API_BASE_URL = RESOLVED_API_BASE;
 
   private constructor() {}
 

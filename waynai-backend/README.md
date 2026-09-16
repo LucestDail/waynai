@@ -30,60 +30,51 @@ WaynAI는 단순한 정보 검색 툴이 아닌, 여행자의 목적, 취향, �
 
 ## 🛠️ 기술 스택
 
-- **Framework**: Spring Boot 4.0.0-SNAPSHOT
-- **Language**: Java 24
+> ⚠️ 이 절은 2026-09-16 까지 **Spring Boot 4.0.0-SNAPSHOT · Java 24** 라고 적혀 있었다.
+> 실제 `pom.xml` 은 **3.2.0 / 17** 이다. 그대로 믿고 환경을 맞추면 빌드가 안 된다.
+
+- **Framework**: Spring Boot **3.2.0**
+- **Language**: Java **17**
 - **Build Tool**: Maven
 - **Lombok**: 코드 간소화
 - **Validation**: Bean Validation
-- **HTTP Client**: RestTemplate
-- **AI Integration**: Google Gemini API
-- **External API**: 한국관광공사 API
+- **HTTP Client**: RestTemplate + **WebClient**(둘 다 쓴다)
+- **AI Integration**: **osh-ai-gateway 경유**(OpenRouter). 직결 아님
+- **External API**: 한국관광공사(`apis.data.go.kr`) · **Travelpayouts**(항공) ·
+  **OpenRouteService**(경로) · **Naver 검색** · **Nominatim**(지오코딩) ·
+  **daero**(자체 대중교통 엔진, `daero.duckdns.org`)
 
 ## 📁 프로젝트 구조
 
 ```
 src/main/java/com/waynai/demo/
-├── controller/          # REST 컨트롤러
-│   ├── SearchController.java      # 실시간 검색 API
-│   ├── TourCourseController.java  # 여행 코스 API
-│   ├── TouristSpotController.java # 관광지 API
-│   └── TouristInfoController.java # 관광지 정보 API
-├── service/            # 비즈니스 로직
-│   ├── SearchService.java         # 실시간 검색 서비스
-│   ├── TourCourseService.java     # 여행 코스 서비스
-│   ├── TouristSpotService.java    # 관광지 서비스
-│   ├── LLMService.java            # AI 서비스
-│   └── TouristInfoService.java    # 관광지 정보 서비스
-├── dto/               # 데이터 전송 객체
-│   ├── SearchRequestDto.java      # 검색 요청 DTO
-│   ├── SearchResponseDto.java     # 검색 응답 DTO
-│   ├── TourCourseRequestDto.java  # 여행 코스 요청 DTO
-│   ├── TourCourseResponseDto.java # 여행 코스 응답 DTO
-│   ├── TouristSpotDto.java        # 관광지 DTO
-│   ├── DayPlanDto.java            # 일정 계획 DTO
-│   ├── SpotVisitDto.java          # 방문지 DTO
-│   ├── ApiResponseDto.java        # API 응답 DTO
-│   ├── gemini/                    # Gemini API DTO
-│   │   ├── GeminiRequestDto.java
-│   │   └── GeminiResponseDto.java
-│   └── tourist/                   # 관광지 API DTO
-│       ├── TouristApiRequestDto.java
-│       └── TouristApiResponseDto.java
-├── interceptor/       # 인터셉터
-│   ├── LoggingInterceptor.java    # 로깅 인터셉터
-│   └── AuthInterceptor.java       # 인증 인터셉터
-├── config/           # 설정 클래스
-│   ├── WebConfig.java             # 웹 설정
-│   └── RestTemplateConfig.java    # RestTemplate 설정
-├── exception/        # 예외 처리
-│   └── GlobalExceptionHandler.java # 전역 예외 처리
-├── util/            # 유틸리티 클래스
-│   ├── ValidationUtil.java        # 검증 유틸리티
-│   └── DateUtil.java              # 날짜 유틸리티
-└── client/          # HTTP 클라이언트
-    ├── HttpClientService.java     # HTTP 클라이언트 서비스
-    ├── GeminiApiClient.java       # Gemini API 클라이언트
-    └── TouristApiClient.java      # 관광지 API 클라이언트
+├── controller/          # REST 컨트롤러 (12개)
+│   ├── TravelController.java            # 여행 계획 생성(SSE)
+│   ├── PlanController.java              # 계획 저장/조회/삭제(익명 토큰)
+│   ├── ChatController.java              # 대화형 질의
+│   ├── LLMController.java               # LLM 프록시
+│   ├── FlightController.java            # 항공편 검색(Travelpayouts)
+│   ├── RouteController.java             # 경로(OpenRouteService·daero)
+│   ├── GpsController.java               # 주변 검색
+│   ├── NaverSearchController.java       # 네이버 검색
+│   ├── TouristInfoController.java       # 관광지 정보(한국관광공사)
+│   ├── RelatedTouristInfoController.java# 연관 관광지
+│   ├── HealthController.java            # 헬스체크
+│   └── TestController.java              # 개발용
+├── service/            # 비즈니스 로직 (12개)
+│   ├── TravelOrchestratorService.java   # 권역분할·계획 조립(핵심)
+│   ├── TravelPlanService.java / TravelService.java
+│   ├── PlanArchiveService.java          # 서버 보관(X-Owner-Token)
+│   ├── FlightSearchService.java         # IATA 변환 + 최저가
+│   ├── IntentAnalysisService.java       # 의도 분석
+│   ├── ChatService.java · LLMService.java
+│   ├── GpsNearbyService.java · NaverSearchService.java
+│   └── TouristInfoService.java · RelatedTouristInfoService.java
+├── client/             # 외부 API 클라이언트
+├── repository/         # 계획 파일 저장소
+├── dto/                # 데이터 전송 객체
+├── config/             # WebConfig(CORS) 등
+└── util/
 ```
 
 ## 🔧 API 엔드포인트

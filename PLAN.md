@@ -74,14 +74,14 @@ Vue 3 프로젝트이므로 Vuetify 3 (M3 기반) 또는 커스텀 CSS로 적용
 ### Phase 1 — 기존 안정화 + 문서 정합성 (2주)
 
 **1.1 코드 정리**
-- [ ] 백엔드 README 버전 수정 (Spring Boot 4 → 3.2, Java 24 → 17)
-- [ ] 프론트 API URL 하드코딩 제거 → `VITE_API_BASE_URL` 환경 변수 필수화
+- [x] 백엔드 README 버전 수정 (Spring Boot 4 → 3.2, Java 24 → 17)  ← **됨**(2026-09-16): `waynai-backend/README.md` 가 **Spring Boot 4.0.0-SNAPSHOT · Java 24** 라 적혀 있었다(실제 3.2.0/17). 그대로 믿고 환경을 맞추면 빌드가 안 된다. 외부 API 목록도 실물로 교체
+- [x] 프론트 API URL 하드코딩 제거 → `VITE_API_BASE_URL` 환경 변수 필수화  ← **됨**(2026-09-16): 네 파일이 각자 `|| 'http://localhost:8080'` 로 **조용히 폴백**하고 있었다 → `src/config/api.ts` 한 곳으로 모으고, **운영 빌드에 값이 없으면 `vite.config.ts` 가 빌드를 멈춘다**. 종전엔 빌드가 통과해 **사용자가** 먼저 발견했다
 - [x] CORS: `allowedOrigins("*")` → 명시적 도메인 제한  ← **됨**: `WebConfig` 가 `allowedOriginPatterns(origins)` — 설정 기반 제한(하드코딩 `"*"` 아님)
 - [x] `application.properties` 내 공공 API 서비스키 → 환경 변수 분리  ← **됨**: 공공 API 서비스키 env 참조
 
 **1.2 기존 코드와 문서 불일치 수정**
 - [x] README에 없는 실제 컨트롤러 문서화 (TravelController, ChatController 등)  ← **됨**: 컨트롤러 12개 실재(Travel·Chat·Flight·Plan·Route·TouristInfo 등)
-- [ ] README에 있으나 코드에 없는 컨트롤러 제거 (SearchController 등)
+- [x] README에 있으나 코드에 없는 컨트롤러 제거 (SearchController 등)  ← **됨**(2026-09-16): README 가 나열한 4개 중 **실재하는 것은 1개**(`TouristInfoController`)였고, 반대로 **실제 12개 중 11개가 미문서화**였다. 구조 블록을 실물에서 생성해 교체
 
 ### Phase 2 — 여행 계획 고도화 (5주)
 

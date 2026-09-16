@@ -21,7 +21,7 @@ interface Day { day?: number; title?: string; spots?: Spot[] }
 // profile: foot-walking(도보) | driving-car(차량)
 const props = defineProps<{ days: Day[]; profile?: string }>();
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import { API_BASE_URL as API_BASE } from '../config/api';
 
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;

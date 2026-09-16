@@ -12,7 +12,7 @@ import type { TravelPlan, FlightOffer } from '@/stores/stream';
  * ⚠️ 게이트웨이(nginx) Basic 인증이 Authorization 헤더를 쓰므로 토큰은 전용 헤더로 보낸다.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import { API_BASE_URL } from '../config/api';
 const TOKEN_KEY = 'waynai.ownerToken.v1';
 const OWNER_HEADER = 'X-Owner-Token';
 
