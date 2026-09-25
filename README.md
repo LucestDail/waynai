@@ -2,6 +2,52 @@
 
 > "당신의 길을 함께 찾는 여행 파트너". Google Gemini AI와 공공 API를 활용하여 맞춤형 여행 계획, 관광 정보, 연관 명소 추천을 제공하는 풀스택 웹 애플리케이션입니다.
 
+---
+
+## 🔴 운영 상태 (2026-09-25 실측) — 프론트가 깨져 있다
+
+홈랩 `.25` 라이브를 직접 확인한 결과다. **다음 세션이 이어받을 것.**
+
+### 지금 깨진 것
+`/var/www/waynai/` 에 배포된 번들(2026-09-16 15:06)이 **서브패스 base 없이 빌드**되어 있다.
+
+| 경로 | 결과 |
+|---|---|
+| `/waynai/` | 200 (index.html 은 뜬다) |
+| `/assets/index-5maJ64lu.js` ← index.html 이 참조하는 경로 | **404** |
+| `/waynai/assets/index-5maJ64lu.js` ← 파일 실제 위치 | 200 |
+
+즉 **JS·CSS 가 전부 404 라 빈 화면**이다. 거기에 더해 그 번들엔 `String("http://localhost:8080")` 이 API base 로 박혀 있다 — `940d1be` 가 막으려던 결함이 이미 나간 상태다.
+
+### 고친 산출물은 빌드·스테이징 완료, 배포만 남음
+```bash
+# 맥에서 이렇게 빌드했다 (재현용)
+cd waynai-frontend
+VITE_API_BASE_URL=/waynai npx vite build --base=/waynai/
+```
+검증 완료: 에셋 `/waynai/assets/…`, API base `String("/waynai")`, 라우터 base `/waynai/`, `localhost:8080` 0건.
+
+**절대 주소가 아니라 상대 경로 `/waynai` 를 쓴다.** nginx 가 `/waynai/api/` → 백엔드 `/api/` 로 프록시하므로 포트·스킴에 묶이지 않는다. 절대 주소를 박으면 `chominjungum-web` 이 겪은 것과 같은 함정에 빠진다(`src/config/api.ts` 주석 참조).
+
+산출물은 서버 `/tmp/waynai-dist.tar.gz` 에 올려둔 상태다. 남은 명령:
+```bash
+sudo mv /var/www/waynai /var/www/waynai.bak-$(date +%Y%m%d-%H%M%S)
+sudo mkdir -p /var/www/waynai
+sudo tar xzf /tmp/waynai-dist.tar.gz -C /var/www/waynai
+sudo chown -R www-data:www-data /var/www/waynai
+# 확인 — 200 이어야 한다
+curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: oshhome.duckdns.org' \
+  "http://127.0.0.1/waynai/$(grep -oE 'assets/index-[^\"]+\.js' /var/www/waynai/index.html | head -1)"
+```
+
+### 백엔드도 5커밋 뒤처져 있다
+라이브 `c1af627`(09-14) ↔ 저장소 `682c54f`(09-16). 미반영분에 Phase 2(JSON Schema 구조화 출력·예산 비교·절감 제안)가 들어 있다. 재빌드·재기동 필요.
+
+### 기동 방식 (유실 주의)
+`waynai.service` 의 `ExecStart` 는 **`/home/seunghyun/Workspace/waynai/run-prod.sh`** 를 직접 부른다. 이 파일은 git 에 없는 서버 전용 파일이었고, 2026-09-25 에 백업 매니페스트(`/usr/local/bin/homelab-backup.sh`)에 추가했다.
+
+---
+
 ## 주요 기능
 
 - **AI 여행 계획** — Gemini 기반 SSE 스트리밍으로 실시간 여행 일정 생성
