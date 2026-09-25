@@ -4,44 +4,46 @@
 
 ---
 
-## 🔴 운영 상태 (2026-09-25 실측) — 프론트가 깨져 있다
+## 운영 상태 (2026-09-25) — 프론트 복구 완료 · 백엔드 배포 완료
 
-홈랩 `.25` 라이브를 직접 확인한 결과다. **다음 세션이 이어받을 것.**
+홈랩 `.25` 라이브 실측 후 같은 날 조치까지 마쳤다.
 
-### 지금 깨진 것
-`/var/www/waynai/` 에 배포된 번들(2026-09-16 15:06)이 **서브패스 base 없이 빌드**되어 있다.
+### 무엇이 깨져 있었나 (2026-09-16 ~ 09-25, 9일간)
+`/var/www/waynai/` 번들이 **서브패스 base 없이 빌드**되어 `index.html` 이 `/assets/…` 를 참조했는데
+실제 파일은 `/waynai/assets/…` 에 있었다. **JS·CSS 전부 404 → 빈 화면.**
+그 번들엔 `String("http://localhost:8080")` 이 API base 로 박혀 있기도 했다(`940d1be` 가 막으려던 결함).
 
-| 경로 | 결과 |
-|---|---|
-| `/waynai/` | 200 (index.html 은 뜬다) |
-| `/assets/index-5maJ64lu.js` ← index.html 이 참조하는 경로 | **404** |
-| `/waynai/assets/index-5maJ64lu.js` ← 파일 실제 위치 | 200 |
+| 경로 | 조치 전 | 조치 후 |
+|---|---|---|
+| `/waynai/` | 200 | 200 |
+| index.html 이 참조하는 JS | **404** | **200** |
+| CSS | **404** | **200** |
+| API base | `http://localhost:8080` | `/waynai` |
 
-즉 **JS·CSS 가 전부 404 라 빈 화면**이다. 거기에 더해 그 번들엔 `String("http://localhost:8080")` 이 API base 로 박혀 있다 — `940d1be` 가 막으려던 결함이 이미 나간 상태다.
-
-### 고친 산출물은 빌드·스테이징 완료, 배포만 남음
+### 🔴 재빌드할 때 반드시 이 두 값을 준다
 ```bash
-# 맥에서 이렇게 빌드했다 (재현용)
 cd waynai-frontend
 VITE_API_BASE_URL=/waynai npx vite build --base=/waynai/
 ```
-검증 완료: 에셋 `/waynai/assets/…`, API base `String("/waynai")`, 라우터 base `/waynai/`, `localhost:8080` 0건.
+- `--base=/waynai/` 없으면 에셋이 다시 404 가 된다(앱이 `/waynai/` 서브패스에 서빙된다).
+- `VITE_API_BASE_URL` 없으면 운영 빌드가 **의도적으로 실패**한다(`vite.config.ts` 가드). 없앴다고 지우지 말 것.
+- **절대 주소를 쓰지 않는다.** nginx 가 `/waynai/api/` → 백엔드 `/api/` 로 프록시하므로 상대 경로가 포트·스킴에 묶이지 않는다. 절대 주소는 `chominjungum-web` 이 겪은 함정과 같다(`src/config/api.ts` 주석 참조).
 
-**절대 주소가 아니라 상대 경로 `/waynai` 를 쓴다.** nginx 가 `/waynai/api/` → 백엔드 `/api/` 로 프록시하므로 포트·스킴에 묶이지 않는다. 절대 주소를 박으면 `chominjungum-web` 이 겪은 것과 같은 함정에 빠진다(`src/config/api.ts` 주석 참조).
-
-산출물은 서버 `/tmp/waynai-dist.tar.gz` 에 올려둔 상태다. 남은 명령:
+배포는 새 디렉터리에 펼친 뒤 교체한다(무중단에 가깝게):
 ```bash
+sudo mkdir -p /var/www/waynai.new
+sudo tar xzf <dist.tar.gz> -C /var/www/waynai.new
+sudo find /var/www/waynai.new -name '._*' -delete   # macOS tar 는 AppleDouble 을 넣는다
+sudo chown -R www-data:www-data /var/www/waynai.new
 sudo mv /var/www/waynai /var/www/waynai.bak-$(date +%Y%m%d-%H%M%S)
-sudo mkdir -p /var/www/waynai
-sudo tar xzf /tmp/waynai-dist.tar.gz -C /var/www/waynai
-sudo chown -R www-data:www-data /var/www/waynai
-# 확인 — 200 이어야 한다
-curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: oshhome.duckdns.org' \
-  "http://127.0.0.1/waynai/$(grep -oE 'assets/index-[^\"]+\.js' /var/www/waynai/index.html | head -1)"
+sudo mv /var/www/waynai.new /var/www/waynai
 ```
+롤백본: `/var/www/waynai.bak-20260925-105905`
 
-### 백엔드도 5커밋 뒤처져 있다
-라이브 `c1af627`(09-14) ↔ 저장소 `682c54f`(09-16). 미반영분에 Phase 2(JSON Schema 구조화 출력·예산 비교·절감 제안)가 들어 있다. 재빌드·재기동 필요.
+### 백엔드
+라이브 `c1af627`(09-14) → **`b1ba850` 배포 완료**. 테스트 122개 통과, 재기동 후 3초에 `/actuator/health` 200.
+반영된 것: Phase 2(JSON Schema 구조화 출력·예산 대비 비교·절감 제안).
+롤백 jar: `waynai-backend/target/waynai-backend-0.0.1-SNAPSHOT.jar.bak-20260925-*`
 
 ### 기동 방식 (유실 주의)
 `waynai.service` 의 `ExecStart` 는 **`/home/seunghyun/Workspace/waynai/run-prod.sh`** 를 직접 부른다. 이 파일은 git 에 없는 서버 전용 파일이었고, 2026-09-25 에 백업 매니페스트(`/usr/local/bin/homelab-backup.sh`)에 추가했다.
